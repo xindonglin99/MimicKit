@@ -94,13 +94,13 @@ class CharEnv(sim_env.SimEnv):
         char_id = self._get_char_id()
         dof_pos = self._engine.get_dof_pos(char_id)
         action_size = int(dof_pos.shape[-1])
-        low = -np.ones([action_size])
-        high = np.ones([action_size])
+        low = -np.ones([action_size], dtype=np.float32)
+        high = np.ones([action_size], dtype=np.float32)
         return low, high
 
     def _build_action_bounds_pos(self, dof_low, dof_high):
-        low = np.zeros(dof_high.shape)
-        high = np.zeros(dof_high.shape)
+        low = np.zeros(dof_high.shape, dtype=np.float32)
+        high = np.zeros(dof_high.shape, dtype=np.float32)
 
         num_joints = self._kin_char_model.get_num_joints()
         for j in range(1, num_joints):
@@ -146,16 +146,16 @@ class CharEnv(sim_env.SimEnv):
         char_id = self._get_char_id()
         dof_pos = self._engine.get_dof_pos(char_id)
         action_size = int(dof_pos.shape[-1])
-        low = -2.0 * np.pi * np.ones([action_size])
-        high = 2.0 * np.pi * np.ones([action_size])
+        low = -2.0 * np.pi * np.ones([action_size], dtype=np.float32)
+        high = 2.0 * np.pi * np.ones([action_size], dtype=np.float32)
         return low, high
 
     def _build_action_bounds_torque(self, torque_lim):
         char_id = self._get_char_id()
         dof_pos = self._engine.get_dof_pos(char_id)
         assert(dof_pos.shape[-1] == len(torque_lim))
-        low = -np.array(torque_lim)
-        high = np.array(torque_lim)
+        low = -np.array(torque_lim, dtype=np.float32)
+        high = np.array(torque_lim, dtype=np.float32)
         return low, high
 
     def _get_char_id(self):
