@@ -21,7 +21,8 @@ env:
     key_bodies: ["head", "right_hand", "left_hand", "right_foot", "left_foot"]
     contact_bodies: ["right_shin", "right_foot", "left_shin", "left_foot"]
     
-    enable_rand_tar_dir: True
+    rand_tar_dir: True
+    rand_face_dir: False
     tar_speed_min: 0.5
     tar_speed_max: 3.0
     tar_change_time_min: 4.0
@@ -43,8 +44,8 @@ env:
     reward_root_vel_scale: 1.0
     reward_key_pos_scale: 10.0
     
-    reward_steering_dir_w: 0.7
-    reward_steering_facing_w: 0.3
+    reward_steering_tar_w: 0.7
+    reward_steering_face_w: 0.3
 
     reward_steering_vel_scale: 2.0
     reward_steering_tangent_scale: 0.2
