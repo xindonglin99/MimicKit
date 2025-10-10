@@ -1,4 +1,4 @@
-import engines.isaac_gym_engine as isaac_gym_engine
+import isaacgym.gymapi as gymapi
 
 import abc
 import envs.base_env as base_env
@@ -144,10 +144,13 @@ class SimEnv(base_env.BaseEnv):
 
     def _build_engine(self, engine_config, num_envs, device, visualize):
         eng_name = engine_config["engine_name"]
+
         if (eng_name == "isaac_gym"):
+            import engines.isaac_gym_engine as isaac_gym_engine
             eng = isaac_gym_engine.IsaacGymEngine(engine_config, num_envs, device, visualize)
         else:
             assert False, print("Unsupported engine: {:s}".format(eng_name))
+
         return eng
     
     @abc.abstractmethod

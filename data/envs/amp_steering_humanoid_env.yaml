@@ -24,7 +24,7 @@ env:
     rand_tar_dir: True
     rand_face_dir: False
     tar_speed_min: 0.5
-    tar_speed_max: 3.0
+    tar_speed_max: 5.0
     tar_change_time_min: 4.0
     tar_change_time_max: 7.0
 
@@ -47,8 +47,8 @@ env:
     reward_steering_tar_w: 0.7
     reward_steering_face_w: 0.3
 
-    reward_steering_vel_scale: 2.0
-    reward_steering_tangent_scale: 0.2
+    reward_steering_vel_scale: 0.5
+    reward_steering_tangent_scale: 0.1
 
 
 engine:

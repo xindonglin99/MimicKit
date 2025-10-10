@@ -114,6 +114,9 @@ class ViewMotionEnv(char_env.CharEnv):
                 self._engine.draw_lines(i, verts, cols)
 
         return
+    
+    def _get_char_color(self):
+        return np.array([0.5, 0.9, 0.1])
 
     def _ig_build_character(self, env_id, config, color=None):
         col_group = env_id

@@ -128,60 +128,9 @@ class DeepMimicEnv(char_env.CharEnv):
     def _enable_ref_char(self):
         return self._visualize and self._visualize_ref_char
 
-    def _ig_build_envs(self, config, num_envs):
-        self._ref_char_ids = []
+    def _get_ref_char_color(self):
+        return np.array([0.5, 0.9, 0.1])
 
-        super()._ig_build_envs(config, num_envs)
-
-        motion_file = config["env"]["motion_file"]
-        self._load_motions(motion_file)
-        return
-
-    def _ig_build_env(self, env_id, config):
-        ref_char_color = [0.5, 0.9, 0.1]
-
-        super()._ig_build_env(env_id, config)
-
-        if (self._enable_ref_char()):
-            ref_char_id = self._ig_build_ref_character(env_id, config, color=ref_char_color)
-            self._ref_char_ids.append(ref_char_id)
-            
-            if (env_id == 0):
-                self._ref_char_ids.append(ref_char_id)
-            else:
-                ref_char_id0 = self._ref_char_ids[0]
-                assert(ref_char_id0 == ref_char_id)
-        
-        return 
-    
-    def _ig_build_character(self, env_id, config, color=None):
-        col_group = env_id
-        col_filter = 0
-        segmentation_id = 0
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._char_asset, 
-                                             name="character", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter,
-                                             segmentation_id=segmentation_id,
-                                             color=color)
-        return char_id
-    
-    def _ig_build_ref_character(self, env_id, config, color):
-        vis_col_group = self.get_num_envs()
-        col_group = vis_col_group + env_id
-        col_filter = 1
-        segmentation_id = 0
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._char_asset, 
-                                             name="ref_character", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             disable_motors=True,
-                                             color=color)
-        return char_id
-    
     def _reset_char(self, env_ids):
         self._reset_ref_motion(env_ids)
         self._ref_state_init(env_ids)
@@ -583,6 +532,66 @@ class DeepMimicEnv(char_env.CharEnv):
         root_rot = root_rot.reshape([n, num_steps, root_rot.shape[-1]])
         joint_rot = joint_rot.reshape([n, num_steps, joint_rot.shape[-2], joint_rot.shape[-1]])
         return root_pos, root_rot, joint_rot
+
+
+    
+    ######################
+    # Isaac Gym Builders
+    ######################
+
+    def _ig_build_envs(self, config, num_envs):
+        self._ref_char_ids = []
+
+        super()._ig_build_envs(config, num_envs)
+
+        motion_file = config["env"]["motion_file"]
+        self._load_motions(motion_file)
+        return
+
+    def _ig_build_env(self, env_id, config):
+        super()._ig_build_env(env_id, config)
+
+        if (self._enable_ref_char()):
+            ref_char_col = self._get_ref_char_color()
+            ref_char_id = self._ig_build_ref_character(env_id, config, color=ref_char_col)
+            self._ref_char_ids.append(ref_char_id)
+            
+            if (env_id == 0):
+                self._ref_char_ids.append(ref_char_id)
+            else:
+                ref_char_id0 = self._ref_char_ids[0]
+                assert(ref_char_id0 == ref_char_id)
+        
+        return 
+    
+    def _ig_build_character(self, env_id, config, color=None):
+        col_group = env_id
+        col_filter = 0
+        segmentation_id = 0
+        char_id = self._engine.create_actor(env_id=env_id, 
+                                             asset=self._char_asset, 
+                                             name="character", 
+                                             col_group=col_group, 
+                                             col_filter=col_filter,
+                                             segmentation_id=segmentation_id,
+                                             color=color)
+        return char_id
+    
+    def _ig_build_ref_character(self, env_id, config, color):
+        vis_col_group = self.get_num_envs()
+        col_group = vis_col_group + env_id
+        col_filter = 1
+        segmentation_id = 0
+        char_id = self._engine.create_actor(env_id=env_id, 
+                                             asset=self._char_asset, 
+                                             name="ref_character", 
+                                             col_group=col_group, 
+                                             col_filter=col_filter, 
+                                             segmentation_id=segmentation_id,
+                                             disable_motors=True,
+                                             color=color)
+        return char_id
+    
 
 
     

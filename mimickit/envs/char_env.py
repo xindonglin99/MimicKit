@@ -286,6 +286,9 @@ class CharEnv(sim_env.SimEnv):
             assert(False), "Unsupported camera mode {}".format(self._camera_mode)
 
         return
+
+    def _get_char_color(self):
+        return np.array([0.5, 0.65, 0.95])
     
 
     ######################
@@ -314,7 +317,7 @@ class CharEnv(sim_env.SimEnv):
         return
     
     def _ig_build_env(self, env_id, config):
-        char_col = [0.5, 0.65, 0.95]
+        char_col = self._get_char_color()
         char_id = self._ig_build_character(env_id, config, color=char_col)
 
         if (env_id == 0):

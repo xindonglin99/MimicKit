@@ -67,7 +67,7 @@ class TaskSteeringEnv(amp_env.AMPEnv):
 
     def _update_marker(self, env_ids):
         tar_dist_min = 1.0
-        tar_dist_max = 2.0
+        tar_dist_max = 1.5
 
         char_id = self._get_char_id()
         tar_marker_id = self._get_tar_marker_id()

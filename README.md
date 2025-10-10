@@ -96,7 +96,7 @@ The rotations of 3D joints are represented using 3D exponential maps, and the ro
 If you find this codebase helpful, please cite:
 ```
 @misc{MimicKit,
-	title = {MimicKit},
+	title = {MimicKit: A Reinforcement Learning Framework for Motion Imitation and Control},
 	author = {Peng, Xue Bin},
 	year = {2025},
 	publisher = {GitHub},
