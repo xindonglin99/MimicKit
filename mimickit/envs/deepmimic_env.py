@@ -157,7 +157,8 @@ class DeepMimicEnv(char_env.CharEnv):
         return
 
     def _reset_ref_motion(self, env_ids):
-        motion_ids, motion_times = self._sample_motion_times(env_ids)
+        n = len(env_ids)
+        motion_ids, motion_times = self._sample_motion_times(n)
         self._motion_ids[env_ids] = motion_ids
         self._motion_time_offsets[env_ids] = motion_times
 
@@ -252,14 +253,13 @@ class DeepMimicEnv(char_env.CharEnv):
     def _track_global_root(self):
         return self._enable_tar_obs and self._global_obs
 
-    def _sample_motion_times(self, env_ids):
-        n = len(env_ids)
+    def _sample_motion_times(self, n):
         motion_ids = self._motion_lib.sample_motions(n)
 
         if (self._rand_reset):
             motion_times = self._motion_lib.sample_time(motion_ids)
         else:
-            motion_times = torch.zeros(motion_ids.shape, dtype=torch.float, device=env_ids.device)
+            motion_times = torch.zeros(n, dtype=torch.float, device=self._device)
 
         return motion_ids, motion_times
 

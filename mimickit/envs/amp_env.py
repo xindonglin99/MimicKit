@@ -28,8 +28,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         return disc_obs_space
 
     def fetch_disc_obs_demo(self, num_samples):
-        motion_ids = self._motion_lib.sample_motions(num_samples)
-        motion_times0 = self._motion_lib.sample_time(motion_ids)
+        motion_ids, motion_times0 = self._sample_motion_times(num_samples)
         disc_obs = self._compute_disc_obs_demo(motion_ids, motion_times0)
         return disc_obs
 

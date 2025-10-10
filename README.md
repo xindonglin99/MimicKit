@@ -61,8 +61,8 @@ To use distributed training with multi-CPU or multi-GPU:
 ```
 python mimickit/run.py --arg_file args/deepmimic_humanoid_ppo_args.txt --num_workers 2 --device cuda:0
 ```
-- `--num_workers` specifies the number of worker processes used to parallize training. 
-- `--device` specifies the device used for training, which can be `cpu` or `cuda:0`. When training with multiple GPUs, the number of worker processes used to parallize training must be less than or equal to the number of GPUs available on the system.
+- `--num_workers` specifies the number of worker processes used to parallelize training. 
+- `--device` specifies the device used for training, which can be `cpu` or `cuda:0`. When training with multiple GPUs, the number of worker processes used to parallelize training must be less than or equal to the number of GPUs available on the system.
 
 ## Visualizing Training Logs
 
