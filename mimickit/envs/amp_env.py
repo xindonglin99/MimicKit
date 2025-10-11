@@ -156,7 +156,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         super()._update_misc()
         self._update_disc_hist()
         return
-
+    
     def _update_disc_hist(self):
         char_id = self._get_char_id()
         root_pos = self._engine.get_root_pos(char_id)
@@ -181,7 +181,12 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
             self._disc_hist_key_pos.push(key_pos)
 
         return
-
+    
+    def _update_ref_motion(self):
+        if (self._enable_ref_char()):
+            super()._update_ref_motion()
+        return
+    
     def _update_observations(self, env_ids=None):
         super()._update_observations(env_ids)
 
@@ -274,7 +279,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
 
     def _update_reward(self):
         return
-
+    
     def _reset_envs(self, env_ids):
         super()._reset_envs(env_ids)
 

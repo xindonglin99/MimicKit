@@ -20,11 +20,14 @@ class ADDEnv(amp_env.AMPEnv):
         self._info["disc_obs_demo"] = self._disc_obs_demo_buf
         return
 
-
     def _update_observations(self, env_ids=None):
         super()._update_observations(env_ids)
         if (env_ids is None or len(env_ids) > 0):
             self._update_disc_obs_demo(env_ids)
+        return
+    
+    def _update_ref_motion(self):
+        deepmimic_env.DeepMimicEnv._update_ref_motion(self)
         return
     
     def _update_disc_obs(self, env_ids=None):
