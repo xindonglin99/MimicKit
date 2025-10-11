@@ -3,7 +3,7 @@
 
 ![Teaser](images/MimicKit_teaser.gif)
 
-This framework provides a suite of motion imitation algorithms for training motion controllers. This codebase includes implementations of:
+This framework provides a suite of motion imitation methods for training motion controllers. This codebase includes implementations of:
 - [DeepMimic](https://xbpeng.github.io/projects/DeepMimic/index.html)
 - [AMP](https://xbpeng.github.io/projects/AMP/index.html)
 - [ASE](https://xbpeng.github.io/projects/ASE/index.html)
