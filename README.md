@@ -37,7 +37,7 @@ python mimickit/run.py --mode train --num_envs 4096 --env_config data/envs/deepm
 - `--visualize` enables visualization. Rendering should be disabled for faster training.
 - `--log_file` specifies the output log file, which will keep track of statistics during training.
 - `--out_model_file` specifies the output model file, which contains the model parameters.
-- `--logger` specifies the logger used to record training stats. The options are tensorboard `tb` or `wandb`.
+- `--logger` specifies the logger used to record training stats. The options are TensorBoard `tb` or `wandb`.
 
 Instead of specifying all arguments through the command line, arguments can also be loaded from an `arg_file`:
 ```
@@ -66,7 +66,7 @@ python mimickit/run.py --arg_file args/deepmimic_humanoid_ppo_args.txt --num_wor
 
 ## Visualizing Training Logs
 
-When using the tensorboard logger during training, a tensorboard `events` file will be saved the same output directory as the log file. The log can be viewed with:
+When using the TensorBoard logger during training, a TensorBoard `events` file will be saved the same output directory as the log file. The log can be viewed with:
 ```
 tensorboard --logdir=output/ --port=6006 --bind_all --samples_per_plugin scalars=999999
 ```
@@ -81,7 +81,7 @@ The `view_motion` environment can be used to visualize motion clips:
 python mimickit/run.py --mode test --arg_file args/view_motion_humanoid_args.txt --visualize true
 ```
 
-Motion clips are represented by the `Motion` class implemented in [`motion.py`](mimickit/anim/motion.py). Each motion clip is stored in a `.pkl` file. Each frame in the motion specifies the pose of the character according to
+Motion clips are represented by the `Motion` class implemented in [`motion.py`](rl_forge/anim/motion.py). Each motion clip is stored in a `.pkl` file. Each frame in a motion specifies the pose of the character according to
 ```
 [root position (3D), root rotation (3D), joint rotations]
 ```
