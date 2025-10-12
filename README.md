@@ -81,7 +81,7 @@ The `view_motion` environment can be used to visualize motion clips:
 python mimickit/run.py --mode test --arg_file args/view_motion_humanoid_args.txt --visualize true
 ```
 
-Motion clips are represented by the `Motion` class implemented in [`motion.py`](rl_forge/anim/motion.py). Each motion clip is stored in a `.pkl` file. Each frame in a motion specifies the pose of the character according to
+Motion clips are represented by the `Motion` class implemented in [`motion.py`](mimickit/anim/motion.py). Each motion clip is stored in a `.pkl` file. Each frame in a motion specifies the pose of the character according to
 ```
 [root position (3D), root rotation (3D), joint rotations]
 ```
