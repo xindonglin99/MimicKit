@@ -42,8 +42,6 @@ class IsaacGymEngine(engine.Engine):
 
         self._env_spacing = config["env_spacing"]
         self._envs = []
-
-        self._last_frame_time = 0.0
         
         if (control_mode is not None):
             self._control_mode = control_mode
@@ -60,6 +58,7 @@ class IsaacGymEngine(engine.Engine):
 
         if (visualize):
             self._build_viewer()
+            self._prev_frame_time = 0.0
 
         return
     
@@ -222,15 +221,16 @@ class IsaacGymEngine(engine.Engine):
             # This synchronizes the physics simulation with the rendering rate.
             self._gym.sync_frame_time(self._sim)
 
-            # it seems like in some cases sync_frame_time still results in higher-than-realtime framerate
+            # it seems that in some cases sync_frame_time still results in higher-than-realtime framerate
             # this code will slow down the rendering to real time
             now = time.time()
-            delta = now - self._last_frame_time
+            delta = now - self._prev_frame_time
 
-            if delta < self._timestep:
+            if (delta < self._timestep):
                 time.sleep(self._timestep - delta)
 
-            self._last_frame_time = time.time()
+            self._prev_frame_time = time.time()
+
         else:
             self._gym.poll_viewer_events(self._viewer)
             
