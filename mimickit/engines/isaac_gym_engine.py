@@ -214,6 +214,10 @@ class IsaacGymEngine(engine.Engine):
         if (self._enable_viewer_sync):
             self._gym.step_graphics(self._sim)
             self._gym.draw_viewer(self._viewer, self._sim, True)
+
+            # Wait for dt to elapse in real time.
+            # This synchronizes the physics simulation with the rendering rate.
+            self._gym.sync_frame_time(self._sim)
         else:
             self._gym.poll_viewer_events(self._viewer)
             
