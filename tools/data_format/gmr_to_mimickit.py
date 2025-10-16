@@ -30,21 +30,12 @@ import argparse
 import pickle
 import numpy as np
 import sys
-from pathlib import Path
 
 import torch
 
-# Ensure the repository root is on sys.path so we can import mimickit when executed directly.
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+sys.path.append(".")  # Ensure the repository root is on sys.path so we can import mimickit when executed directly.
 
-# Provide a compatibility alias for legacy pickles that refer to the old 'anim' module path.
-import mimickit.anim as _mimickit_anim
-import mimickit.anim.motion as _mimickit_anim_motion
-sys.modules.setdefault("anim", _mimickit_anim)
-sys.modules.setdefault("anim.motion", _mimickit_anim_motion)
-
+import mimickit.anim.motion as motion
 from mimickit.util.torch_util import quat_to_exp_map
 
 def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
@@ -57,9 +48,9 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
         loop_mode (bool): Whether the motion should loop (Set to wrap as default)
     """
     if loop_mode == "wrap":
-        loop_mode = _mimickit_anim_motion.LoopMode.WRAP
+        loop_mode = motion.LoopMode.WRAP
     elif loop_mode == "clamp":
-        loop_mode = _mimickit_anim_motion.LoopMode.CLAMP
+        loop_mode = motion.LoopMode.CLAMP
     else:
         raise ValueError(f"Invalid loop_mode: {loop_mode}. Choose 'wrap' or 'clamp'.")
     
@@ -93,11 +84,10 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     frames = frames[start_frame:end_frame, :]
     
     # Create MimicKit Motion object
-    motion_class = _mimickit_anim_motion.Motion(fps=fps, loop_mode=loop_mode, frames=frames)
+    motion_class = motion.Motion(fps=fps, loop_mode=loop_mode, frames=frames)
     
     # Save as MimicKit format
-    with open(output_file_path, 'wb') as f:
-        pickle.dump(motion_class, f)
+    motion_class.save(output_file_path)
     
     print(f"Converted motion from {gmr_file_path} to {output_file_path}")
     print(f"Motion info: {frames.shape[0]} frames, {fps} fps, loop={loop_mode}")

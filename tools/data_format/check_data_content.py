@@ -13,18 +13,9 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-from pathlib import Path
 
-# Ensure the repository root is on sys.path so we can import mimickit when executed directly.
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-# Provide a compatibility alias for legacy pickles that refer to the old 'anim' module path.
-import mimickit.anim as _mimickit_anim
-import mimickit.anim.motion as _mimickit_anim_motion
-sys.modules.setdefault("anim", _mimickit_anim)
-sys.modules.setdefault("anim.motion", _mimickit_anim_motion)
+# Add mimickit to sys.path
+sys.path.append(".")
 
 from mimickit.anim.motion import Motion
 
