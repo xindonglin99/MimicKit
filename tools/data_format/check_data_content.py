@@ -15,9 +15,9 @@ import os
 import sys
 
 # Add mimickit to sys.path
-sys.path.append(".")
+sys.path.append("mimickit")
 
-from mimickit.anim.motion import Motion
+from anim.motion import Motion
 
 def inspect_csv(file_path):
     """Inspect a CSV file using pandas."""
