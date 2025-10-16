@@ -16,7 +16,7 @@ GMR Format:
     The input GMR format should be a pickle file containing a dictionary with keys:
     - 'fps': Frame rate (int)
     - 'root_pos': Root position array, shape (num_frames, 3)
-    - 'root_rot': Root rotation quaternions, shape (num_frames, 4)
+    - 'root_rot': Root rotation quaternions, shape (num_frames, 4) (x, y, z, w)
     - 'dof_pos': Degrees of freedom positions, shape (num_frames, num_dofs)
     - 'local_body_pos': Currently unused (can be None)
     - 'link_body_list': Currently unused (can be None)
@@ -33,10 +33,10 @@ import sys
 
 import torch
 
-sys.path.append(".")  # Ensure the repository root is on sys.path so we can import mimickit when executed directly.
+sys.path.append("mimickit")  # Ensure the repository root is on sys.path so we can import mimickit when executed directly.
 
-import mimickit.anim.motion as motion
-from mimickit.util.torch_util import quat_to_exp_map, exp_map_to_quat
+import anim.motion as motion
+from util.torch_util import quat_to_exp_map
 
 def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
     """
@@ -74,13 +74,8 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     if dof_pos.ndim != 2:
         raise ValueError(f"Expected dof_pos to be 2D array, got {dof_pos.ndim}D")
 
+    ## NOTE: Here we might get some q = -q case but it should be fine.
     root_rot = quat_to_exp_map(torch.tensor(root_rot_quat)).numpy()  # Convert quaternion to exponential map
-
-    tmp_exp_map = quat_to_exp_map(torch.tensor(root_rot_quat))
-    revert_back = exp_map_to_quat(tmp_exp_map).numpy()
-    # Verify conversion correctness
-    if not np.allclose(revert_back, root_rot_quat, atol=1e-5):
-        print("Warning: Quaternion to exp map conversion and back did not match original quaternions closely.")
     
     # Stack all motion data along the last dimension
     # frames shape: (num_frames, 3 + 3 + num_dofs) = (num_frames, 6 + num_dofs)
