@@ -12,7 +12,7 @@ env:
 
     motion_file: "data/motions/hightorque/pi_plus/fight1_subject2_mimickit.pkl"
 
-    motion_rotation_type: 1 # exp_map: 0, quat: 1
+    motion_rotation_type: 0 # exp_map: 0, quat: 1
 
 engine:
     engine_name: "isaac_gym"
