@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import torch
+import time
 
 import engines.engine as engine
 
@@ -41,6 +42,8 @@ class IsaacGymEngine(engine.Engine):
 
         self._env_spacing = config["env_spacing"]
         self._envs = []
+
+        self._last_frame_time = 0.0
         
         if (control_mode is not None):
             self._control_mode = control_mode
@@ -214,6 +217,20 @@ class IsaacGymEngine(engine.Engine):
         if (self._enable_viewer_sync):
             self._gym.step_graphics(self._sim)
             self._gym.draw_viewer(self._viewer, self._sim, True)
+
+            # Wait for dt to elapse in real time.
+            # This synchronizes the physics simulation with the rendering rate.
+            self._gym.sync_frame_time(self._sim)
+
+            # it seems like in some cases sync_frame_time still results in higher-than-realtime framerate
+            # this code will slow down the rendering to real time
+            now = time.time()
+            delta = now - self._last_frame_time
+
+            if delta < self._timestep:
+                time.sleep(self._timestep - delta)
+
+            self._last_frame_time = time.time()
         else:
             self._gym.poll_viewer_events(self._viewer)
             
