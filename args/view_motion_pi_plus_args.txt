@@ -1,0 +1,8 @@
+--mode test
+--num_envs 4
+
+--env_config data/envs/view_motion_pi_plus_env.yaml
+--agent_config data/agents/deepmimic_pi_plus_ppo_agent.yaml
+
+--log_file output/log.txt
+--out_model_file output/model.pt

@@ -214,6 +214,9 @@ class IsaacGymEngine(engine.Engine):
         if (self._enable_viewer_sync):
             self._gym.step_graphics(self._sim)
             self._gym.draw_viewer(self._viewer, self._sim, True)
+
+            # wait for dt to elapse in real time
+            self._gym.sync_frame_time(self._sim)
         else:
             self._gym.poll_viewer_events(self._viewer)
             

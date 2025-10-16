@@ -1,0 +1,47 @@
+env_name: "view_motion"
+
+env:
+    char_file: "data/assets/hightorque/pi_plus/pi_plus_20dof.xml"
+    camera_mode: "track"
+
+    episode_length: 20.0 # seconds
+    global_obs: False
+    root_height_obs: True
+    
+    key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "base_link", "l_wrist_link", "r_wrist_link"]
+
+    motion_file: "data/motions/hightorque/pi_plus/walk1_subject1_mimickit.pkl"
+
+    motion_rotation_type: 1 # exp_map: 0, quat: 1
+
+engine:
+    engine_name: "isaac_gym"
+    
+    control_mode: "none"
+    sim_freq: 30
+    control_freq: 30
+    env_spacing: 5
+
+    plane:
+        static_friction: 1.0
+        dynamic_friction: 1.0
+        restitution: 0.0
+
+    sim:
+        substeps: 1 # 30 Hz
+        physx:
+            num_threads: 4
+            solver_type: 1  # 0: pgs, 1: tgs
+            num_position_iterations: 4
+            num_velocity_iterations: 0
+            contact_offset: 0.02
+            rest_offset: 0.0
+            bounce_threshold_velocity: 0.2
+            max_depenetration_velocity: 10.0
+            default_buffer_size_multiplier: 10.0
+
+        flex:
+            num_inner_iterations: 10
+            warm_start: 0.25
+
+
