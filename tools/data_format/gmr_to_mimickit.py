@@ -36,7 +36,7 @@ import torch
 sys.path.append(".")  # Ensure the repository root is on sys.path so we can import mimickit when executed directly.
 
 import mimickit.anim.motion as motion
-from mimickit.util.torch_util import quat_to_exp_map
+from mimickit.util.torch_util import quat_to_exp_map, exp_map_to_quat
 
 def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
     """
@@ -75,12 +75,21 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
         raise ValueError(f"Expected dof_pos to be 2D array, got {dof_pos.ndim}D")
 
     root_rot = quat_to_exp_map(torch.tensor(root_rot_quat)).numpy()  # Convert quaternion to exponential map
+
+    tmp_exp_map = quat_to_exp_map(torch.tensor(root_rot_quat))
+    revert_back = exp_map_to_quat(tmp_exp_map).numpy()
+    # Verify conversion correctness
+    if not np.allclose(revert_back, root_rot_quat, atol=1e-5):
+        print("Warning: Quaternion to exp map conversion and back did not match original quaternions closely.")
     
     # Stack all motion data along the last dimension
     # frames shape: (num_frames, 3 + 3 + num_dofs) = (num_frames, 6 + num_dofs)
     frames = np.concatenate([root_pos, root_rot, dof_pos], axis=1)
 
     # Chop frames
+    if end_frame == -1:
+        end_frame = frames.shape[0]
+    assert 0 <= start_frame < end_frame <= frames.shape[0], "Invalid start_frame or end_frame."
     frames = frames[start_frame:end_frame, :]
     
     # Create MimicKit Motion object
