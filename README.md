@@ -3,7 +3,7 @@
 
 ![Teaser](images/MimicKit_teaser.gif)
 
-This framework provides a suite of motion imitation methods for training motion controllers. This codebase includes implementations of:
+This framework provides a suite of motion imitation methods for training motion controllers. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). This codebase includes implementations of:
 - [DeepMimic](https://xbpeng.github.io/projects/DeepMimic/index.html)
 - [AMP](https://xbpeng.github.io/projects/AMP/index.html)
 - [ASE](https://xbpeng.github.io/projects/ASE/index.html)
@@ -95,13 +95,15 @@ The rotations of 3D joints are represented using 3D exponential maps, and the ro
 ## Citation
 If you find this codebase helpful, please cite:
 ```
-@misc{MimicKit,
-	title = {MimicKit: A Reinforcement Learning Framework for Motion Imitation and Control},
-	author = {Peng, Xue Bin},
-	year = {2025},
-	publisher = {GitHub},
-	journal = {GitHub repository},
-	howpublished = {\url{https://github.com/xbpeng/MimicKit}},
+@misc{
+      MimicKitPeng2025,
+      title={MimicKit: A Reinforcement Learning Framework for Motion Imitation and Control}, 
+      author={Xue Bin Peng},
+      year={2025},
+      eprint={2510.13794},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2510.13794}, 
 }
 ```
 Please also consider citing the relevant papers:
