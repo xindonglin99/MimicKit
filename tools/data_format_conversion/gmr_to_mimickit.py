@@ -33,9 +33,10 @@ import sys
 
 import torch
 
-sys.path.append("mimickit")  # Ensure the repository root is on sys.path so we can use some utilities.
+sys.path.append(".")  # Ensure the repository root is on sys.path so we can use some utilities.
 
-from util.torch_util import quat_to_exp_map
+from mimickit.anim.motion import Motion, LoopMode
+from mimickit.util.torch_util import quat_to_exp_map
 
 def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
     """
@@ -47,9 +48,9 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
         loop_mode (bool): Whether the motion should loop (Set to wrap as default)
     """
     if loop_mode == "wrap":
-        loop_mode_out = 1 # MimicKit LoopMode.WRAP
+        loop_mode_out = LoopMode.WRAP # MimicKit LoopMode.WRAP
     elif loop_mode == "clamp":
-        loop_mode_out = 0 # MimicKit LoopMode.CLAMP
+        loop_mode_out = LoopMode.CLAMP # MimicKit LoopMode.CLAMP
     else:
         raise ValueError(f"Invalid loop_mode: {loop_mode}. Choose 'wrap' or 'clamp'.")
     
@@ -62,6 +63,16 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     root_pos = gmr_data['root_pos']  # Shape: (num_frames, 3)
     root_rot_quat = gmr_data['root_rot']  # Shape: (num_frames, 4), quaternion format
     dof_pos = gmr_data['dof_pos']    # Shape: (num_frames, num_dofs)
+
+    # Log the type and shape of each extracted term
+    print("\n" + "="*60)
+    print("📥 LOADED GMR DATA")
+    print("="*60)
+    print(f"⏱️  FPS:           type={type(fps).__name__}, value={fps}")
+    print(f"📍 Root Position: type={type(root_pos).__name__}, shape={root_pos.shape}")
+    print(f"🔄 Root Rotation: type={type(root_rot_quat).__name__}, shape={root_rot_quat.shape}")
+    print(f"🦴 DOF Position:  type={type(dof_pos).__name__}, shape={dof_pos.shape}")
+    print("="*60 + "\n")
     
     # Verify shapes
     if root_pos.ndim != 2 or root_pos.shape[1] != 3:
@@ -73,8 +84,8 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     if dof_pos.ndim != 2:
         raise ValueError(f"Expected dof_pos to be 2D array, got {dof_pos.ndim}D")
 
-    ## NOTE: Here we might get some q = -q case but it should be fine.
-    root_rot = quat_to_exp_map(torch.tensor(root_rot_quat)).numpy()  # Convert quaternion to exponential map
+    # Convert quaternion to exponential map
+    root_rot = quat_to_exp_map(torch.tensor(root_rot_quat)).numpy()  
     
     # Stack all motion data along the last dimension
     # frames shape: (num_frames, 3 + 3 + num_dofs) = (num_frames, 6 + num_dofs)
@@ -86,18 +97,22 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     assert 0 <= start_frame < end_frame <= frames.shape[0], "Invalid start_frame or end_frame."
     frames = frames[start_frame:end_frame, :]
 
-    out_data = {
-        'fps': fps, # INT
-        'loop_mode': loop_mode_out, # INT
-        'frames': frames # np.ndarray of shape (num_frames, 6 + num_dofs)
-    }
+    out_data = Motion(loop_mode=loop_mode_out, fps=fps, frames=frames)
     
     # Save to MimicKit format
-    with open(output_file_path, 'wb') as f:
-        pickle.dump(out_data, f)
+    out_data.save(output_file_path)
     
-    print(f"Converted motion from {gmr_file_path} to {output_file_path}")
-    print(f"Motion info: {frames.shape[0]} frames, {fps} fps, loop={loop_mode}")
+    print("\n" + "="*60)
+    print("✅ CONVERSION SUCCESSFUL")
+    print("="*60)
+    print(f"📁 Input:  {gmr_file_path}")
+    print(f"💾 Output: {output_file_path}")
+    print("-"*60)
+    print(f"📊 Frames Shape:  {frames.shape}")
+    print(f"🎬 Total Frames: {frames.shape[0]}")
+    print(f"⏱️  FPS:          {fps}")
+    print(f"🔄 Loop Mode:    {loop_mode_out}")
+    print("="*60 + "\n")
 
     return out_data
 
