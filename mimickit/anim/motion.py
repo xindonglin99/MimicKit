@@ -7,10 +7,17 @@ class LoopMode(enum.Enum):
 
 def load_motion(file):
     with open(file, "rb") as filestream:
-        data = pickle.load(filestream)
-        motion_data = Motion(loop_mode=data["loop_mode"],
-                             fps=data["fps"],
-                             frames=data["frames"])
+        in_dict = pickle.load(filestream)
+
+        loop_mode_val = in_dict["loop_mode"]
+        fps = in_dict["fps"]
+        frames = in_dict["frames"]
+        
+        loop_mode = LoopMode(loop_mode_val)
+
+        motion_data = Motion(loop_mode=loop_mode,
+                             fps=fps,
+                             frames=frames)
     return motion_data
 
 class Motion():
@@ -23,7 +30,7 @@ class Motion():
     def save(self, out_file):
         with open(out_file, "wb") as out_f:
             out_dict = {
-                "loop_mode": self.loop_mode,
+                "loop_mode": self.loop_mode.value,
                 "fps": self.fps,
                 "frames": self.frames
             }
