@@ -14,11 +14,6 @@ import numpy as np
 import os
 import sys
 
-# Add mimickit to sys.path
-sys.path.append("mimickit")
-
-from anim.motion import Motion
-
 def inspect_csv(file_path):
     """Inspect a CSV file using pandas."""
     try:
@@ -32,7 +27,7 @@ def inspect_csv(file_path):
         print(f"❌ Error reading CSV file: {e}")
 
 def inspect_pkl(file_path, max_items=10):
-    """Inspect a pickle file that may contain dicts, DataFrames (csv), or Motion objects."""
+    """Inspect a pickle file that may contain dicts or DataFrames (csv)."""
     try:
         with open(file_path, "rb") as f:
             data = pickle.load(f)
@@ -53,15 +48,12 @@ def inspect_pkl(file_path, max_items=10):
                     print(f"... ({len(data) - max_items} more keys)")
                     break
                 print(f"\n🔑 Key: '{key}'")
+
+                if isinstance(value, np.ndarray):
+                    print(f"Type: numpy.ndarray, Shape: {value.shape}, Dtype: {value.dtype}")
+                    
                 print(f"Value: {value}")
         
-        elif isinstance(data, Motion):
-            print(f"\n🎬 Motion object:")
-            print(f"FPS: {data.fps}, Loop Mode: {data.loop_mode}, Frames shape: {data.frames.shape}")
-            sample_frames = data.frames[0]
-            print(f"Sample: the first root position: {sample_frames[:3]}")  # Print first 5 frames' root positions (first 3 values)
-            print(f"Sample: the first frames exponential map: {sample_frames[3:6]}")  # Print first 5 frames' exponential map (next 3 values)
-            print(f"Sample: the first frames DOF positions: {sample_frames[6:]}")  # Print first 5 frames' DOF positions (remaining values)
         else:
             print(f"\n⚠️ Unrecognized object type. Please inspect manually.")
 
