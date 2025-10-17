@@ -181,7 +181,6 @@ class MotionLib():
             frames = curr_motion.frames
             curr_weight = motion_weights[f]
 
-            loop_mode = loop_mode.value
             dt = 1.0 / fps
 
             num_frames = frames.shape[0]

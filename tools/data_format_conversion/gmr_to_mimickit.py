@@ -3,7 +3,7 @@ This module provides functionality to convert motion data from GMR format to Mim
 
 Usage:
     Command line:
-        python tools/data_format/gmr_to_mimickit.py --input_file <path> --output_file <path> [options]
+        python tools/data_format/gmr_to_mimickit.py
     Required arguments:
         --input_file PATH       Path to the input GMR pickle file
         --output_file PATH      Path to save the output MimicKit pickle file
@@ -16,13 +16,13 @@ GMR Format:
     The input GMR format should be a pickle file containing a dictionary with keys:
     - 'fps': Frame rate (int)
     - 'root_pos': Root position array, shape (num_frames, 3)
-    - 'root_rot': Root rotation quaternions, shape (num_frames, 4) (x, y, z, w)
+    - 'root_rot': Root rotation quaternions, shape (num_frames, 4), format (x, y, z, w)
     - 'dof_pos': Degrees of freedom positions, shape (num_frames, num_dofs)
     - 'local_body_pos': Currently unused (can be None)
     - 'link_body_list': Currently unused (can be None)
 
 Output:
-    Creates a MimicKit Motion object saved as a pickle file, with motion data stored as
+    Creates a dictionary containing MimicKit motion data saved as a pickle file, with loop mode stored as INT and motion data stored as
     concatenated arrays of [root_pos, root_rot_expmap, dof_pos] per frame.
 """
 
@@ -33,9 +33,8 @@ import sys
 
 import torch
 
-sys.path.append("mimickit")  # Ensure the repository root is on sys.path so we can import mimickit when executed directly.
+sys.path.append("mimickit")  # Ensure the repository root is on sys.path so we can use some utilities.
 
-import anim.motion as motion
 from util.torch_util import quat_to_exp_map
 
 def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
@@ -48,9 +47,9 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
         loop_mode (bool): Whether the motion should loop (Set to wrap as default)
     """
     if loop_mode == "wrap":
-        loop_mode = motion.LoopMode.WRAP
+        loop_mode_out = 1 # MimicKit LoopMode.WRAP
     elif loop_mode == "clamp":
-        loop_mode = motion.LoopMode.CLAMP
+        loop_mode_out = 0 # MimicKit LoopMode.CLAMP
     else:
         raise ValueError(f"Invalid loop_mode: {loop_mode}. Choose 'wrap' or 'clamp'.")
     
@@ -86,17 +85,21 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
         end_frame = frames.shape[0]
     assert 0 <= start_frame < end_frame <= frames.shape[0], "Invalid start_frame or end_frame."
     frames = frames[start_frame:end_frame, :]
+
+    out_data = {
+        'fps': fps, # INT
+        'loop_mode': loop_mode_out, # INT
+        'frames': frames # np.ndarray of shape (num_frames, 6 + num_dofs)
+    }
     
-    # Create MimicKit Motion object
-    motion_class = motion.Motion(fps=fps, loop_mode=loop_mode, frames=frames)
-    
-    # Save as MimicKit format
-    motion_class.save(output_file_path)
+    # Save to MimicKit format
+    with open(output_file_path, 'wb') as f:
+        pickle.dump(out_data, f)
     
     print(f"Converted motion from {gmr_file_path} to {output_file_path}")
     print(f"Motion info: {frames.shape[0]} frames, {fps} fps, loop={loop_mode}")
-    
-    return motion_class
+
+    return out_data
 
 def main():
     parser = argparse.ArgumentParser(description="Convert GMR motion data to MimicKit format.")
