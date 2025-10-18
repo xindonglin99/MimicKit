@@ -135,11 +135,6 @@ class AMPAgent(ppo_agent.PPOAgent):
         disc_loss_demo = self._disc_loss_pos(disc_demo_logit)
         disc_loss = 0.5 * (disc_loss_agent + disc_loss_demo)
 
-        # logit reg
-        logit_weights = self._model.get_disc_logit_weights()
-        disc_logit_loss = torch.sum(torch.square(logit_weights))
-        disc_loss += self._disc_logit_reg * disc_logit_loss
-
         # grad penalty
         disc_demo_grad = torch.autograd.grad(disc_demo_logit, norm_disc_obs_demo, grad_outputs=torch.ones_like(disc_demo_logit),
                                              create_graph=True, retain_graph=True, only_inputs=True)
@@ -147,13 +142,6 @@ class AMPAgent(ppo_agent.PPOAgent):
         disc_demo_grad = torch.sum(torch.square(disc_demo_grad), dim=-1)
         disc_grad_penalty = torch.mean(disc_demo_grad)
         disc_loss += self._disc_grad_penalty * disc_grad_penalty
-
-        # weight decay
-        if (self._disc_weight_decay != 0):
-            disc_weights = self._model.get_disc_weights()
-            disc_weights = torch.cat(disc_weights, dim=-1)
-            disc_weight_decay = torch.sum(torch.square(disc_weights))
-            disc_loss += self._disc_weight_decay * disc_weight_decay
 
         disc_agent_acc, disc_demo_acc = self._compute_disc_acc(disc_agent_logit, disc_demo_logit)
 
@@ -163,12 +151,27 @@ class AMPAgent(ppo_agent.PPOAgent):
         disc_info = {
             "disc_loss": disc_loss,
             "disc_grad_penalty": disc_grad_penalty.detach(),
-            "disc_logit_loss": disc_logit_loss.detach(),
             "disc_agent_acc": disc_agent_acc.detach(),
             "disc_demo_acc": disc_demo_acc.detach(),
             "disc_agent_logit": disc_agent_logit_mean.detach(),
             "disc_demo_logit": disc_demo_logit_mean.detach()
         }
+        
+        # logit reg
+        if (self._disc_logit_reg != 0):
+            logit_weights = self._model.get_disc_logit_weights()
+            disc_logit_loss = torch.sum(torch.square(logit_weights))
+            disc_loss += self._disc_logit_reg * disc_logit_loss
+            disc_info["disc_logit_loss"] = disc_logit_loss.detach()
+
+        # weight decay
+        if (self._disc_weight_decay != 0):
+            disc_weights = self._model.get_disc_weights()
+            disc_weights = torch.cat(disc_weights, dim=-1)
+            disc_weight_decay = torch.sum(torch.square(disc_weights))
+            disc_loss += self._disc_weight_decay * disc_weight_decay
+            disc_info["disc_weight_decay"] = disc_weight_decay.detach()
+
         return disc_info
 
     def _disc_loss_neg(self, disc_logits):
