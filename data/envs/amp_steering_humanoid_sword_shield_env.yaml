@@ -48,7 +48,6 @@ env:
     reward_steering_face_w: 0.3
 
     reward_steering_vel_scale: 2.0
-    reward_steering_tangent_scale: 0.2
 
 
 engine:
