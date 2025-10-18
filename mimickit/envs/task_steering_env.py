@@ -19,7 +19,6 @@ class TaskSteeringEnv(amp_env.AMPEnv):
         self._reward_steering_face_w = float(env_config["reward_steering_face_w"])
 
         self._reward_steering_vel_scale = float(env_config["reward_steering_vel_scale"])
-        self._reward_steering_tangent_scale = float(env_config["reward_steering_tangent_scale"])
 
         super().__init__(config=config, num_envs=num_envs, device=device, visualize=visualize)
 
@@ -198,7 +197,6 @@ class TaskSteeringEnv(amp_env.AMPEnv):
                                                       face_dir=self._face_dir,
                                                       dt=self._engine.get_timestep(),
                                                       vel_err_scale=self._reward_steering_vel_scale,
-                                                      tangent_err_scale=self._reward_steering_tangent_scale,
                                                       tar_reward_w=self._reward_steering_tar_w,
                                                       face_reward_w=self._reward_steering_face_w)
         return
@@ -293,24 +291,21 @@ def compute_steering_observations(root_rot, tar_dir, tar_speed, face_dir):
 
 @torch.jit.script
 def compute_steering_reward(root_pos, prev_root_pos, root_rot, tar_dir, tar_speed, face_dir, dt,
-                           vel_err_scale, tangent_err_scale, tar_reward_w, face_reward_w):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float, float, float, float, float) -> Tensor
+                           vel_err_scale, tar_reward_w, face_reward_w):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float, float, float, float) -> Tensor
 
     delta_root_pos = root_pos - prev_root_pos
     root_vel = delta_root_pos / dt
-    char_tar_speed = torch.sum(tar_dir * root_vel[..., :2], dim=-1)
 
-    char_tar_vel = char_tar_speed.unsqueeze(-1) * tar_dir
-    tar_vel_err = tar_speed - char_tar_speed
-    tar_vel_err = torch.square(tar_vel_err)
+    tar_vel = tar_speed.unsqueeze(-1) * tar_dir
+    tar_vel_err = tar_vel - root_vel[..., :2]
+    tar_vel_err = torch.sum(torch.square(tar_vel_err), dim=-1)
 
-    tangent_vel = root_vel[..., :2] - char_tar_vel
-    tangent_vel_err = torch.sum(torch.square(tangent_vel), dim=-1)
-
-    tar_reward = torch.exp(-vel_err_scale * tar_vel_err - tangent_err_scale * tangent_vel_err)
-
-    speed_mask = char_tar_speed <= 0
-    tar_reward[speed_mask] = 0
+    tar_reward = torch.exp(-vel_err_scale * tar_vel_err)
+    
+    proj_speed = torch.sum(tar_dir * root_vel[..., :2], dim=-1)
+    wrong_dir = proj_speed < 0
+    tar_reward[wrong_dir] = 0
 
     heading_rot = torch_util.calc_heading_quat(root_rot)
     char_face_dir = torch.zeros_like(root_pos)
