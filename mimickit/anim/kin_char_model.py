@@ -448,8 +448,8 @@ class KinCharModel():
     <default>
         <motor ctrlrange="-1 1" ctrllimited="true"/>
         <default class="body">
-            <geom type="sphere" condim="1" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1"/>
-            <joint type="hinge" damping="0.1" stiffness="5" armature=".007" limited="true" solimplimit="0 .99 .01"/>
+            <geom condim="1" friction="1.0 0.05 0.05" solimp=".9 .99 .003" solref=".015 1"/>
+            <joint limited="true" solimplimit="0 .99 .01"/>
         </default>
     </default>
 
