@@ -240,8 +240,9 @@ def compute_location_reward(root_pos, prev_root_pos, root_rot, tar_pos, tar_spee
     tar_vel_err = tar_speed - tar_dir_speed
     tar_vel_err = torch.clamp_min(tar_vel_err, 0.0)
     vel_reward = torch.exp(-vel_err_scale * (tar_vel_err * tar_vel_err))
-    speed_mask = tar_dir_speed <= 0
-    vel_reward[speed_mask] = 0
+
+    wrong_dir = tar_dir_speed <= 0
+    vel_reward[wrong_dir] = 0
 
     heading_rot = torch_util.calc_heading_quat(root_rot)
     facing_dir = torch.zeros_like(root_pos)
