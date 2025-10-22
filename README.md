@@ -13,6 +13,8 @@ We also include the following RL algorithms:
 - [PPO](https://arxiv.org/abs/1707.06347)
 - [AWR](https://xbpeng.github.io/projects/AWR/index.html)
 
+---
+
 ## Installation
 
 Install IsaacGym: https://developer.nvidia.com/isaac-gym
@@ -23,6 +25,7 @@ pip install -r requirements.txt
 ```
 Download assets and motion data from [here](https://1sfu-my.sharepoint.com/:u:/g/personal/xbpeng_sfu_ca/EclKq9pwdOBAl-17SogfMW0Bved4sodZBQ_5eZCiz9O--w?e=bqXBaa), then extract the contents into [`data/`](data/).
 
+---
 
 ## Training
 
@@ -72,6 +75,7 @@ tensorboard --logdir=output/ --port=6006 --bind_all --samples_per_plugin scalars
 ```
 The output log `.txt` file can also be plotted using the plotting script [`plot_log.py`](tools/plot_log/plot_log.py).
 
+---
 
 ## Motion Data
 Motion data is stored in [`data/motions/`](data/motions/). The `motion_file` field in the environment configuration file can be used to specify the reference motion clip. In addition to imitating individual motion clips, `motion_file` can also specify a dataset file, located in [`data/datasets/`](data/datasets/), which will train a model to imitate a dataset containing multiple motion clips.
@@ -94,6 +98,8 @@ The rotations of 3D joints are represented using 3D exponential maps, and the ro
 
 ## Motion Retargeting
 Motion retargeting can be done using [GMR](https://github.com/YanjieZe/GMR). A script to convert GMR files to the MimicKit format is available in [`tools/gmr_to_mimickit/`](tools/gmr_to_mimickit/).
+
+---
 
 ## Citation
 If you find this codebase helpful, please cite:
