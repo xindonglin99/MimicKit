@@ -415,10 +415,15 @@ class KinCharModel():
         return dof_idx
 
     def _parse_default_joint_type(self, xml_node):
-        default_data = xml_node.find("default")
-        default_data = default_data.findall("default")
-
         joint_type_str = "hinge"
+
+        default_data = xml_node.find("default")
+        if (default_data is None):
+            return joint_type_str
+        
+        default_data = default_data.findall("default")
+        if (default_data is None):
+            return joint_type_str
 
         for data in default_data:
             class_data = data.attrib.get("class")
