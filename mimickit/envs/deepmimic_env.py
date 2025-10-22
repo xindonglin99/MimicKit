@@ -188,6 +188,20 @@ class DeepMimicEnv(char_env.CharEnv):
     def _ref_state_init(self, env_ids):
         char_id = self._get_char_id()
         
+        # Check for NaN values in reference states
+        if torch.isnan(self._ref_root_pos).any():
+            raise RuntimeError("NaN detected in _ref_root_pos")
+        if torch.isnan(self._ref_root_vel).any():
+            raise RuntimeError("NaN detected in _ref_root_vel")
+        if torch.isnan(self._ref_root_ang_vel).any():
+            raise RuntimeError("NaN detected in _ref_root_ang_vel")
+        if torch.isnan(self._ref_root_rot).any():
+            raise RuntimeError("NaN detected in _ref_root_rot")
+        if torch.isnan(self._ref_dof_pos).any():
+            raise RuntimeError("NaN detected in _ref_dof_pos")
+        if torch.isnan(self._ref_dof_vel).any():
+            raise RuntimeError("NaN detected in _ref_dof_vel")
+        
         self._engine.set_root_pos(env_ids, char_id, self._ref_root_pos[env_ids])
         self._engine.set_root_rot(env_ids, char_id, self._ref_root_rot[env_ids])
         self._engine.set_root_vel(env_ids, char_id, self._ref_root_vel[env_ids])
@@ -288,6 +302,20 @@ class DeepMimicEnv(char_env.CharEnv):
         root_ang_vel = self._engine.get_root_ang_vel(char_id)
         dof_pos = self._engine.get_dof_pos(char_id)
         dof_vel = self._engine.get_dof_vel(char_id)
+
+        # Check for NaN values in current state
+        if torch.isnan(root_pos).any():
+            raise RuntimeError("NaN detected in root_pos")
+        if torch.isnan(root_rot).any():
+            raise RuntimeError("NaN detected in root_rot")
+        if torch.isnan(root_vel).any():
+            raise RuntimeError("NaN detected in root_vel")
+        if torch.isnan(root_ang_vel).any():
+            raise RuntimeError("NaN detected in root_ang_vel")
+        if torch.isnan(dof_pos).any():
+            raise RuntimeError("NaN detected in dof_pos")
+        if torch.isnan(dof_vel).any():
+            raise RuntimeError("NaN detected in dof_vel")
 
         if (env_ids is not None):
             root_pos = root_pos[env_ids]
