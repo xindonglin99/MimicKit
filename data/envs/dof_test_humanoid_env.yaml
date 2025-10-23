@@ -7,8 +7,8 @@ env:
     episode_length: 20.0 # seconds
     global_obs: False
     root_height_obs: True
-  
     
+    init_pose: [0, 0, 1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 engine:
     engine_name: "isaac_gym"
