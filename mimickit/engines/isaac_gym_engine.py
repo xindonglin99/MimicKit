@@ -127,15 +127,19 @@ class IsaacGymEngine(engine.Engine):
         asset = self._gym.load_asset(self._sim, file_dir, file_name, asset_options)
         return asset
     
-    def create_actor(self, env_id, asset, name, col_group, col_filter, segmentation_id, start_pos=None, color=None, disable_motors=False):
+    def create_actor(self, env_id, asset, name, col_group, col_filter, segmentation_id, start_pos=None, start_rot=None, color=None, disable_motors=False):
         env_ptr = self.get_env(env_id)
         start_pose = gymapi.Transform()
-        start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
         
         if (start_pos is not None):
             start_pose.p = gymapi.Vec3(start_pos[0], start_pos[1], start_pos[2])
         else:
             start_pose.p = gymapi.Vec3(0.0, 0.0, 0.0)
+
+        if (start_rot is not None):
+            start_pose.r = gymapi.Quat(start_rot[0], start_rot[1], start_rot[2], start_rot[3])
+        else:
+            start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
 
         actor_id = self._gym.create_actor(env_ptr, asset, start_pose, name, col_group, col_filter, segmentation_id)
         

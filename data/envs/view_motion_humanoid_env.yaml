@@ -1,7 +1,7 @@
 env_name: "view_motion"
 
 env:
-    char_file: "data/assets/humanoid.xml"
+    char_file: "data/assets/humanoid/humanoid.xml"
     camera_mode: "track"
 
     episode_length: 20.0 # seconds

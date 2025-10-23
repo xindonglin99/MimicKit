@@ -9,7 +9,6 @@ model:
   critic_net: "fc_3layers_1024units"
 
   disc_net: "fc_3layers_1024units"
-  disc_init_output_scale: 1.0
   
   enc_net: "fc_2layers_1024units"
   latent_dim: 64

@@ -168,7 +168,7 @@ class TaskLocationEnv(amp_env.AMPEnv):
         return
 
     def _ig_load_marker_asset(self):
-        asset_file = "data/assets/location_marker.urdf"
+        asset_file = "data/assets/objects/location_marker.urdf"
         self._marker_asset = self._engine.load_asset(asset_file, fix_base=True)
         return
 

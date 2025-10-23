@@ -23,9 +23,6 @@ env:
     
     motion_file: "data/motions/go2/go2_pace.pkl"
 
-    
-    joint_err_w: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-
     reward_pose_w: 0.5
     reward_vel_w: 0.1
     reward_root_pose_w: 0.15

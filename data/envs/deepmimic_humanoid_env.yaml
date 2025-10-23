@@ -1,7 +1,7 @@
 env_name: "deepmimic"
 
 env:
-    char_file: "data/assets/humanoid.xml"
+    char_file: "data/assets/humanoid/humanoid.xml"
     camera_mode: "track"
 
     episode_length: 10.0 # seconds
@@ -14,6 +14,7 @@ env:
     num_phase_encoding: 4
     tar_obs_steps: [1, 2, 3]
     rand_reset: True
+    log_tracking_error: False
 
     ref_char_offset: [2.0, 0.0, 0.0] # m
     init_pose: [0, 0, 0.882416, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.5708, 0, 0, 0, -1.5708, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -24,7 +25,6 @@ env:
     contact_bodies: ["right_shin", "right_foot", "left_shin", "left_foot"]
     #contact_bodies: ["right_lower_arm", "right_hand", "left_lower_arm", "left_hand", "right_shin", "right_foot", "left_shin", "left_foot"] # cartwheel
     #contact_bodies: [] # roll and crawl
-    log_tracking_error: False
 
     motion_file: "data/motions/humanoid/humanoid_spinkick.pkl"
 

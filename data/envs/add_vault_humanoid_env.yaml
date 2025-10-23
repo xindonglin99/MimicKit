@@ -1,14 +1,14 @@
-env_name: "add"
+env_name: "static_objects"
 
 env:
-    char_file: "data/assets/go2/go2.xml"
+    char_file: "data/assets/humanoid/humanoid.xml"
     camera_mode: "track"
 
     episode_length: 10.0 # seconds
     global_obs: True
     root_height_obs: True
     pose_termination: True
-    pose_termination_dist: 0.5 # m
+    pose_termination_dist: 1.0 # m
     enable_phase_obs: False
     enable_tar_obs: True
     num_phase_encoding: 4
@@ -17,16 +17,23 @@ env:
     rand_reset: True
     log_tracking_error: True
 
-    ref_char_offset: [2.0, 0.0, 0.0] # m
-    init_pose: [0, 0, 0.27, 0, 0, 0, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8]
+    ref_char_offset: [0.0, 2.0, 0.0] # m
+    init_pose: [0, 0, 0.882416, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.5708, 0, 0, 0, -1.5708, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     enable_early_termination: True
-    termination_height: 0.15
-    key_bodies: ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
-    contact_bodies: ["FR_calf", "FR_foot", "FL_calf", "FL_foot", "RR_calf", "RR_foot", "RL_calf", "RL_foot"]
+    termination_height: 0.3
+    key_bodies: ["head", "right_hand", "left_hand", "right_foot", "left_foot"]
+    contact_bodies: ["right_lower_arm", "right_hand", "left_lower_arm", "left_hand", "right_shin", "right_foot", "left_shin", "left_foot"]
     
-    motion_file: "data/motions/go2/go2_pace.pkl"
-
+    motion_file: "data/motions/humanoid/hoi/humanoid_speed_vault.pkl"
+    objects: [{"pos":[2.2, 0.5, 0.2], "file":"data/assets/objects/vault_box.urdf"}]
+    
+    #motion_file: "data/motions/humanoid/hoi/humanoid_double_kong.pkl"
+    #objects: [{"pos":[-8.0, 0.2, 0.3], "file":"data/assets/objects/vault_box.urdf"}, {"pos":[-9.6, 0.2, 0.3], "file":"data/assets/objects/vault_box.urdf"}]
+    
+    #motion_file: "data/motions/humanoid/hoi/humanoid_climbing_up_down.pkl"
+    #objects: [{"pos":[-5.46, 0.1, 1.0], "file":"data/assets/objects/climbing_box.urdf"}]
+    
     reward_pose_w: 0.5
     reward_vel_w: 0.1
     reward_root_pose_w: 0.15
@@ -69,5 +76,8 @@ engine:
         flex:
             num_inner_iterations: 10
             warm_start: 0.25
+
+
+
 
 
