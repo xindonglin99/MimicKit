@@ -418,20 +418,18 @@ class KinCharModel():
         joint_type_str = "hinge"
 
         default_data = xml_node.find("default")
-        if (default_data is None):
-            return joint_type_str
-        
-        default_data = default_data.findall("default")
-        if (default_data is None):
-            return joint_type_str
 
-        for data in default_data:
-            class_data = data.attrib.get("class")
-            if (class_data == "body"):
-                joint_data = data.find("joint")
-                if (joint_data is not None):
-                    joint_type_str = joint_data.attrib.get("type")
-                    break
+        if (default_data is not None):
+            default_data = default_data.findall("default")
+
+            if (default_data is not None):
+                for data in default_data:
+                    class_data = data.attrib.get("class")
+                    if (class_data == "body"):
+                        joint_data = data.find("joint")
+                        if (joint_data is not None):
+                            joint_type_str = joint_data.attrib.get("type")
+                            break
 
         return joint_type_str
 
