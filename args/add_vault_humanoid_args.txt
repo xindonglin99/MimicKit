@@ -1,6 +1,6 @@
 --num_envs 4096
 
---env_config data/envs/add_humanoid_static_objects_env.yaml
+--env_config data/envs/add_vault_humanoid_env.yaml
 --agent_config data/agents/add_humanoid_agent.yaml
 
 --log_file output/log.txt
