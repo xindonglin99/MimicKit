@@ -2,7 +2,6 @@
 --num_envs 4
 
 --env_config data/envs/view_motion_go2_env.yaml
---agent_config data/agents/deepmimic_go2_ppo_agent.yaml
 
 --log_file output/log.txt
 --out_model_file output/model.pt

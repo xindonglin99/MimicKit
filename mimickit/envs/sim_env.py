@@ -5,6 +5,7 @@ import envs.base_env as base_env
 import gym.spaces as spaces
 import numpy as np
 import torch
+
 import util.torch_util as torch_util
 
 class SimEnv(base_env.BaseEnv):
