@@ -22,6 +22,31 @@ class TaskLocationEnv(amp_env.AMPEnv):
 
         super()._build_envs(config, num_envs)
         return
+    
+    def _build_env(self, env_id, config):
+        super()._build_env(env_id, config)
+        
+        if (self._visualize):
+            marker_id = self._build_marker(env_id)
+
+            if (env_id == 0):
+                self._marker_ids.append(marker_id)
+            else:
+                marker_id0 = self._marker_ids[0]
+                assert(marker_id0 == marker_id)
+        return
+
+    def _build_marker(self, env_id):
+        asset_file = "data/assets/objects/location_marker.urdf"
+
+        marker_id = self._engine.create_actor(env_id=env_id, 
+                                             asset_file=asset_file, 
+                                             name="marker",
+                                             is_visual=True,
+                                             fix_base=True,
+                                             color=[0.8, 0.0, 0.0])
+        
+        return marker_id
 
     def _build_sim_tensors(self, config):
         super()._build_sim_tensors(config)
@@ -155,50 +180,6 @@ class TaskLocationEnv(amp_env.AMPEnv):
             self._engine.draw_lines(i, curr_verts, cols)
 
         return
-    
-
-    ######################
-    # Isaac Gym Builders
-    ######################
-
-    def _ig_load_char_asset(self, config):
-        super()._ig_load_char_asset(config)
-        if (self._visualize):
-            self._ig_load_marker_asset()
-        return
-
-    def _ig_load_marker_asset(self):
-        asset_file = "data/assets/objects/location_marker.urdf"
-        self._marker_asset = self._engine.load_asset(asset_file, fix_base=True)
-        return
-
-    def _ig_build_env(self, env_id, config):
-        super()._ig_build_env(env_id, config)
-        
-        if (self._visualize):
-            marker_id = self._ig_build_marker(env_id)
-
-            if (env_id == 0):
-                self._marker_ids.append(marker_id)
-            else:
-                marker_id0 = self._marker_ids[0]
-                assert(marker_id0 == marker_id)
-
-        return
-
-    def _ig_build_marker(self, env_id):
-        col_group = self.get_num_envs()
-        col_filter = 0
-        segmentation_id = 0
-        marker_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._marker_asset, 
-                                             name="marker", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             color=[0.8, 0.0, 0.0])
-        
-        return marker_id
     
 
 #####################################################################

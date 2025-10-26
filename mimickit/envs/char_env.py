@@ -11,7 +11,7 @@ import envs.base_env as base_env
 from util.logger import Logger
 import util.torch_util as torch_util
 
-import engines.isaac_gym_engine as isaac_gym_engine
+import engines.engine as engine
 
 class CameraMode(enum.Enum):
     still = 0
@@ -53,11 +53,40 @@ class CharEnv(sim_env.SimEnv):
         
         self._char_ids = []
         
-        if (isinstance(self._engine, isaac_gym_engine.IsaacGymEngine)):
-            self._ig_build_envs(config, num_envs)
-        else:
-            assert False, print("Unsupported sim engine: {:s}".format(type(self._engine).__name__))
+        for e in range(num_envs):
+            Logger.print("Building {:d}/{:d} envs".format(e + 1, num_envs), end='\r')
+            env_id = self._engine.create_env()
+            assert(env_id == e)
+            self._build_env(env_id, config)
+
+        Logger.print("\n")
+
+        self._validate_envs()
+
         return
+    
+    def _build_env(self, env_id, config):
+        char_col = self._get_char_color()
+        char_id = self._build_character(env_id, config, color=char_col)
+
+        if (env_id == 0):
+            self._print_actor_prop(env_id, char_id)
+
+        if (env_id == 0):
+            self._char_ids.append(char_id)
+        else:
+            char_id0 = self._char_ids[0]
+            assert(char_id0 == char_id)
+        
+        return 
+    
+    def _build_character(self, env_id, config, color=None):
+        char_file = config["env"]["char_file"]
+        char_id = self._engine.create_actor(env_id=env_id, 
+                                             asset_file=char_file, 
+                                             name="character",
+                                             color=color)
+        return char_id
     
     def _build_kin_char_model(self, char_file):
         _, file_ext = os.path.splitext(char_file)
@@ -84,10 +113,36 @@ class CharEnv(sim_env.SimEnv):
         return
     
     def _build_action_space(self):
-        if (isinstance(self._engine, isaac_gym_engine.IsaacGymEngine)):
-            action_space = self._ig_build_action_space()
+        control_mode = self._engine.get_control_mode()
+
+        if (control_mode == engine.ControlMode.none):
+            low, high = self._build_action_bounds_none()
+
+        elif (control_mode == engine.ControlMode.vel):
+            low, high = self._build_action_bounds_vel()
+
+        elif (control_mode == engine.ControlMode.torque):
+            char_id = self._get_char_id()
+            torque_lim = self._engine.get_actor_torque_lim(0, char_id)
+            low, high = self._build_action_bounds_torque(torque_lim)
+
+        elif (control_mode == engine.ControlMode.pos
+              or control_mode == engine.ControlMode.pd_1d):
+            char_id = self._get_char_id()
+            dof_low, dof_high = self._engine.get_actor_dof_limits(0, char_id)
+            low, high = self._build_action_bounds_pos(dof_low, dof_high)
+
         else:
-            assert False, print("Unsupported sim engine: {:s}".format(type(self._engine).__name__))
+            assert(False), "Unsupported control mode: {}".format(control_mode)
+        
+        # check to make sure that pd_1d is only used for 1D joints
+        if (control_mode == engine.ControlMode.pd_1d):
+            num_joints = self._kin_char_model.get_num_joints()
+            for j in range(1, num_joints):
+                j_dim = self._kin_char_model.get_joint_dof_dim(j)
+                assert(j_dim <= 1), "pd_1d only supports 1D joints"
+
+        action_space = spaces.Box(low=low, high=high)
         return action_space
     
     def _build_action_bounds_none(self):
@@ -157,7 +212,24 @@ class CharEnv(sim_env.SimEnv):
         low = -np.array(torque_lim, dtype=np.float32)
         high = np.array(torque_lim, dtype=np.float32)
         return low, high
+    
+    def _print_actor_prop(self, env_id, char_id):
+        num_dofs = self._engine.get_actor_dof_count(env_id, char_id)
+        total_mass = self._engine.calc_actor_mass(env_id, char_id)
+        char_info = "Char properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(num_dofs, total_mass)
+        Logger.print(char_info)
+        return
+    
+    def _validate_envs(self):
+        # checks to make sure the kinematic model is consistent with the simulation model
+        char_id = self._get_char_id()
+        sim_body_names = self._engine.get_actor_body_names(0, char_id)
+        kin_body_names = self._kin_char_model.get_body_names()
 
+        for sim_name, kin_name in zip(sim_body_names, kin_body_names):
+            assert(sim_name == kin_name)
+        return
+    
     def _get_char_id(self):
         return self._char_ids[0]
     
@@ -289,115 +361,6 @@ class CharEnv(sim_env.SimEnv):
 
     def _get_char_color(self):
         return np.array([0.5, 0.65, 0.95])
-    
-
-    ######################
-    # Isaac Gym Builders
-    ######################
-
-    def _ig_build_envs(self, config, num_envs):
-        self._ig_load_char_asset(config)
-
-        self._engine.build_ground_plane(config["engine"])
-        
-        for e in range(num_envs):
-            Logger.print("Building {:d}/{:d} envs".format(e + 1, num_envs), end='\r')
-            env_id = self._engine.create_env()
-            assert(env_id == e)
-            self._ig_build_env(env_id, config)
-
-        Logger.print("\n")
-
-        self._ig_validate_char_model()
-        return
-    
-    def _ig_load_char_asset(self, config):
-        char_file = config["env"]["char_file"]
-        self._char_asset = self._engine.load_asset(char_file)
-        return
-    
-    def _ig_build_env(self, env_id, config):
-        char_col = self._get_char_color()
-        char_id = self._ig_build_character(env_id, config, color=char_col)
-
-        if (env_id == 0):
-            self._ig_print_actor_prop(env_id, char_id)
-
-        if (env_id == 0):
-            self._char_ids.append(char_id)
-        else:
-            char_id0 = self._char_ids[0]
-            assert(char_id0 == char_id)
-        
-        return 
-    
-    def _ig_build_character(self, env_id, config, color=None):
-        col_group = env_id
-        col_filter = 0
-        segmentation_id = 0
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._char_asset, 
-                                             name="character", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             color=color)
-        return char_id
-    
-    def _ig_validate_char_model(self):
-        # checks to make sure the kinematic model is consistent with the simulation model
-        char_id = self._get_char_id()
-        sim_body_names = self._engine.get_actor_body_names(0, char_id)
-        kin_body_names = self._kin_char_model.get_body_names()
-
-        for sim_name, kin_name in zip(sim_body_names, kin_body_names):
-            assert(sim_name == kin_name)
-        return
-    
-    def _ig_print_actor_prop(self, env_id, char_id):
-        num_dofs = self._engine.get_actor_dof_count(env_id, char_id)
-        total_mass = self._engine.calc_actor_mass(env_id, char_id)
-        char_info = "Char properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(num_dofs, total_mass)
-        Logger.print(char_info)
-        return
-    
-    def _ig_build_action_space(self):
-        control_mode = self._engine.get_control_mode()
-
-        if (control_mode == isaac_gym_engine.ControlMode.none):
-            low, high = self._build_action_bounds_none()
-
-        elif (control_mode == isaac_gym_engine.ControlMode.vel):
-            low, high = self._build_action_bounds_vel()
-
-        elif (control_mode == isaac_gym_engine.ControlMode.torque):
-            char_id = self._get_char_id()
-            torque_lim_tensor = self._engine.get_actor_torque_lim(char_id)
-            torque_lim = torque_lim_tensor[0].cpu().numpy()
-            low, high = self._build_action_bounds_torque(torque_lim)
-
-        elif (control_mode == isaac_gym_engine.ControlMode.pos
-              or control_mode == isaac_gym_engine.ControlMode.pd_1d):
-            char_id = self._get_char_id()
-            dof_prop = self._engine.get_actor_dof_properties(0, char_id)
-            dof_low = dof_prop["lower"]
-            dof_high = dof_prop["upper"]
-            low, high = self._build_action_bounds_pos(dof_low, dof_high)
-
-        else:
-            assert(False), "Unsupported control mode: {}".format(control_mode)
-        
-        # check to make sure that pd_1d is only used for 1D joints
-        if (control_mode == isaac_gym_engine.ControlMode.pd_1d):
-            num_joints = self._kin_char_model.get_num_joints()
-            for j in range(1, num_joints):
-                j_dim = self._kin_char_model.get_joint_dof_dim(j)
-                assert(j_dim <= 1), "pd_1d only supports 1D joints"
-
-        action_space = spaces.Box(low=low, high=high)
-        return action_space
-    
-    
 
 
 
@@ -478,7 +441,6 @@ def compute_reward(root_pos):
     # type: (Tensor) -> Tensor
     r = torch.ones_like(root_pos[..., 0])
     return r
-
 
 @torch.jit.script
 def compute_done(done_buf, time, ep_len):

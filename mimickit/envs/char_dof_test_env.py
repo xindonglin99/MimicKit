@@ -52,20 +52,12 @@ class CharDofTestEnv(char_env.CharEnv):
 
         return test_actions
     
-    def _ig_load_char_asset(self, config):
+    def _build_character(self, env_id, config, color=None):
         char_file = config["env"]["char_file"]
-        self._char_asset = self._engine.load_asset(char_file, fix_base=True)
-        return
-
-    def _ig_build_character(self, env_id, config, color=None):
-        col_group = env_id
-        col_filter = 1
-        segmentation_id = 0
         char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._char_asset,
-                                             name="character", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
+                                             asset_file=char_file,
+                                             name="character",
+                                             enable_self_collisions=False,
+                                             fix_base=True,
                                              color=color)
         return char_id

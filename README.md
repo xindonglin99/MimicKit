@@ -89,7 +89,7 @@ Motion clips are represented by the `Motion` class implemented in [`motion.py`](
 ```
 [root position (3D), root rotation (3D), joint rotations]
 ```
-where 3D rotations are specified using 3D exponential maps. Joint rotations are recorded in the order that the joints are specified in the `.xml` file (i.e. depth-first traversal of the kinematic tree). For example, in the case of [`humanoid.xml`](data/assets/humanoid.xml), each frame is represented as
+where 3D rotations are specified using 3D exponential maps. Joint rotations are recorded in the order that the joints are specified in the `.xml` file (i.e. depth-first traversal of the kinematic tree). For example, in the case of [`humanoid.xml`](data/assets/humanoid/humanoid.xml), each frame is represented as
 ```
 [root position (3D), root rotation (3D), abdomen (3D), neck (3D), right_shoulder (3D), right_elbow (1D), left_shoulder (3D), left_elbow (1D), right_hip (3D), right_knee (1D), right_ankle (3D), left_hip (3D), left_knee (1D), left_ankle (3D)]
 ```
@@ -98,8 +98,6 @@ The rotations of 3D joints are represented using 3D exponential maps, and the ro
 
 ## Motion Retargeting
 Motion retargeting can be done using [GMR](https://github.com/YanjieZe/GMR). A script to convert GMR files to the MimicKit format is available in [`tools/gmr_to_mimickit/`](tools/gmr_to_mimickit/).
-
----
 
 ## Citation
 If you find this codebase helpful, please cite:

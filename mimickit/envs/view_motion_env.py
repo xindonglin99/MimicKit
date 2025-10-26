@@ -21,6 +21,15 @@ class ViewMotionEnv(char_env.CharEnv):
         motion_file = config["env"]["motion_file"]
         self._load_motions(motion_file)
         return
+    
+    def _build_character(self, env_id, config, color=None):
+        char_file = config["env"]["char_file"]
+        char_id = self._engine.create_actor(env_id=env_id, 
+                                             asset_file=char_file, 
+                                             name="character",
+                                             enable_self_collisions=False,
+                                             color=color)
+        return char_id
 
     def _load_motions(self, motion_file):
         self._motion_lib = motion_lib.MotionLib(motion_file=motion_file, 
@@ -117,19 +126,6 @@ class ViewMotionEnv(char_env.CharEnv):
     
     def _get_char_color(self):
         return np.array([0.5, 0.9, 0.1])
-
-    def _ig_build_character(self, env_id, config, color=None):
-        col_group = env_id
-        col_filter = 1
-        segmentation_id = 0
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._char_asset, 
-                                             name="character", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             color=color)
-        return char_id
 
 
 

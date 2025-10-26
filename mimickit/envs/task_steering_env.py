@@ -31,6 +31,45 @@ class TaskSteeringEnv(amp_env.AMPEnv):
 
         super()._build_envs(config, num_envs)
         return
+    
+    def _build_env(self, env_id, config):
+        super()._build_env(env_id, config)
+        
+        if (self._visualize):
+            tar_marker_id, face_marker_id = self._build_markers(env_id)
+
+            if (env_id == 0):
+                self._tar_marker_ids.append(tar_marker_id)
+                self._face_marker_ids.append(face_marker_id)
+            else:
+                tar_marker_id0 = self._tar_marker_ids[0]
+                face_marker_id0 = self._face_marker_ids[0]
+
+                assert(tar_marker_id0 == tar_marker_id)
+                assert(face_marker_id0 == face_marker_id)
+
+        return
+    
+    def _build_markers(self, env_id):
+        asset_file = "data/assets/objects/steering_marker.urdf"
+
+        tar_marker_id = self._engine.create_actor(env_id=env_id, 
+                                             asset_file=asset_file, 
+                                             name="tar_marker",
+                                             is_visual=True,
+                                             enable_self_collisions=False,
+                                             fix_base=True,
+                                             color=[0.8, 0.0, 0.0])
+
+        face_marker_id = self._engine.create_actor(env_id=env_id, 
+                                             asset_file=asset_file, 
+                                             name="face_marker",
+                                             is_visual=True,
+                                             enable_self_collisions=False,
+                                             fix_base=True,
+                                             color=[0.0, 0.8, 0.0])
+
+        return tar_marker_id, face_marker_id
 
     def _build_sim_tensors(self, config):
         super()._build_sim_tensors(config)
@@ -205,63 +244,6 @@ class TaskSteeringEnv(amp_env.AMPEnv):
         super()._update_misc()
         self._update_task()
         return
-    
-
-    ######################
-    # Isaac Gym Builders
-    ######################
-    
-    def _ig_load_char_asset(self, config):
-        super()._ig_load_char_asset(config)
-        if (self._visualize):
-            self._ig_load_marker_asset()
-        return
-    
-    def _ig_load_marker_asset(self):
-        asset_file = "data/assets/objects/steering_marker.urdf"
-        self._marker_asset = self._engine.load_asset(asset_file, fix_base=True)
-        return
-    
-    def _ig_build_env(self, env_id, config):
-        super()._ig_build_env(env_id, config)
-        
-        if (self._visualize):
-            tar_marker_id, face_marker_id = self._ig_build_markers(env_id)
-
-            if (env_id == 0):
-                self._tar_marker_ids.append(tar_marker_id)
-                self._face_marker_ids.append(face_marker_id)
-            else:
-                tar_marker_id0 = self._tar_marker_ids[0]
-                face_marker_id0 = self._face_marker_ids[0]
-
-                assert(tar_marker_id0 == tar_marker_id)
-                assert(face_marker_id0 == face_marker_id)
-
-        return
-    
-    def _ig_build_markers(self, env_id):
-        col_group = self.get_num_envs()
-        col_filter = 0
-        segmentation_id = 0
-        
-        tar_marker_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._marker_asset, 
-                                             name="tar_marker", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             color=[0.8, 0.0, 0.0])
-
-        face_marker_id = self._engine.create_actor(env_id=env_id, 
-                                             asset=self._marker_asset, 
-                                             name="face_marker", 
-                                             col_group=col_group, 
-                                             col_filter=col_filter, 
-                                             segmentation_id=segmentation_id,
-                                             color=[0.0, 0.8, 0.0])
-
-        return tar_marker_id, face_marker_id
 
     
 

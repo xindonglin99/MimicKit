@@ -2,7 +2,6 @@ import isaacgym.gymapi as gymapi
 import isaacgym.gymtorch as gymtorch
 import isaacgym.gymutil as gymutil
 
-import enum
 import numpy as np
 import os
 import re
@@ -12,13 +11,6 @@ import time
 
 import engines.engine as engine
 
-class ControlMode(enum.Enum):
-    none = 0
-    pos = 1
-    vel = 2
-    torque = 3
-    pd_1d = 4
-
 class IsaacGymEngine(engine.Engine):
     def __init__(self, config, num_envs, device, visualize, control_mode=None):
         super().__init__()
@@ -27,6 +19,7 @@ class IsaacGymEngine(engine.Engine):
         self._device = device
         self._num_envs = num_envs
         self._enable_viewer_sync = True
+        self._asset_cache = dict()
         
         self._gym = gymapi.acquire_gym()
         
@@ -46,15 +39,17 @@ class IsaacGymEngine(engine.Engine):
         if (control_mode is not None):
             self._control_mode = control_mode
         elif ("control_mode" in config):
-            self._control_mode = ControlMode[config["control_mode"]]
+            self._control_mode = engine.ControlMode[config["control_mode"]]
         else:
-            self._control_mode = ControlMode.none
+            self._control_mode = engine.ControlMode.none
 
         self._actor_kp = [[] for i in range(num_envs)]
         self._actor_kd = [[] for i in range(num_envs)]
         self._actor_torque_lim = [[] for i in range(num_envs)]
 
         self._apply_forces_callback = None
+        
+        self._build_ground_plane(config)
 
         if (visualize):
             self._build_viewer()
@@ -116,21 +111,12 @@ class IsaacGymEngine(engine.Engine):
 
         return
     
-    def load_asset(self, file, fix_base=False):
-        asset_options = gymapi.AssetOptions()
-        asset_options.angular_damping = 0.01
-        asset_options.max_angular_velocity = 100.0
-        asset_options.fix_base_link = fix_base
+    def create_actor(self, env_id, asset_file, name, is_visual=False, enable_self_collisions=True, 
+                     fix_base=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
+        segmentation_id = 0
 
-        file_dir = os.path.dirname(file)
-        file_name = os.path.basename(file)
-        asset = self._gym.load_asset(self._sim, file_dir, file_name, asset_options)
-        return asset
-    
-    def create_actor(self, env_id, asset, name, col_group, col_filter, segmentation_id, start_pos=None, start_rot=None, color=None, disable_motors=False):
-        env_ptr = self.get_env(env_id)
         start_pose = gymapi.Transform()
-        
+
         if (start_pos is not None):
             start_pose.p = gymapi.Vec3(start_pos[0], start_pos[1], start_pos[2])
         else:
@@ -140,14 +126,27 @@ class IsaacGymEngine(engine.Engine):
             start_pose.r = gymapi.Quat(start_rot[0], start_rot[1], start_rot[2], start_rot[3])
         else:
             start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
+            
+        if (is_visual):
+            num_envs = self.get_num_envs()
+            col_group = num_envs + env_id
+        else:
+            col_group = env_id
 
+        if (enable_self_collisions):
+            col_filter = 0
+        else:
+            col_filter = 1
+            
+        env_ptr = self.get_env(env_id)
+        asset = self._load_asset(asset_file, fix_base)
         actor_id = self._gym.create_actor(env_ptr, asset, start_pose, name, col_group, col_filter, segmentation_id)
         
         if (self._enable_dof_force_sensors()):
             self._gym.enable_actor_dof_force_sensors(env_ptr, actor_id)
 
         if (disable_motors):
-            control_mode = ControlMode.none
+            control_mode = engine.ControlMode.none
         else:
             control_mode = self.get_control_mode()
 
@@ -159,7 +158,7 @@ class IsaacGymEngine(engine.Engine):
         motor_efforts = [prop.motor_effort for prop in actuator_props]
         torque_lim = np.array(motor_efforts)
         
-        if (control_mode == ControlMode.none):
+        if (control_mode == engine.ControlMode.none):
             kp = kp * 0
             kd = kd * 0
 
@@ -378,12 +377,15 @@ class IsaacGymEngine(engine.Engine):
     def get_actor_kd(self, actor_id):
         return self._actor_kd[actor_id]
     
-    def get_actor_torque_lim(self, actor_id):
-        return self._actor_torque_lim[actor_id]
+    def get_actor_torque_lim(self, env_id, actor_id):
+        return self._actor_torque_lim[actor_id][env_id].cpu().numpy()
     
-    def get_actor_dof_properties(self, env_id, actor_id):
+    def get_actor_dof_limits(self, env_id, actor_id):
         env_ptr = self.get_env(env_id)
-        return self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        dof_prop = self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        dof_low = dof_prop["lower"]
+        dof_high = dof_prop["upper"]
+        return dof_low, dof_high
     
     def find_actor_body_id(self, env_id, actor_id, body_name):
         env_ptr = self.get_env(env_id)
@@ -398,33 +400,21 @@ class IsaacGymEngine(engine.Engine):
                                        gymapi.Vec3(color[0], color[1], color[2]))
         return
     
-    def build_ground_plane(self, config):
-        plane_config = config["plane"]
-
-        plane_params = gymapi.PlaneParams()
-        plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
-        plane_params.static_friction = plane_config["static_friction"]
-        plane_params.dynamic_friction = plane_config["dynamic_friction"]
-        plane_params.restitution = plane_config["restitution"]
-
-        self._gym.add_ground(self._sim, plane_params)
-        return
-    
     def get_actor_dof_count(self, env_id, actor_id):
         env_ptr = self.get_env(env_id)
         num_dofs = self._gym.get_actor_dof_count(env_ptr, actor_id)
         return num_dofs
+    
+    def get_actor_body_names(self, env_id, actor_id):
+        env_ptr = self.get_env(env_id)
+        body_names = self._gym.get_actor_rigid_body_names(env_ptr, actor_id)
+        return body_names
     
     def calc_actor_mass(self, env_id, actor_id):
         env_ptr = self.get_env(env_id)
         rb_props = self._gym.get_actor_rigid_body_properties(env_ptr, actor_id)
         total_mass = sum(rb.mass for rb in rb_props)
         return total_mass
-    
-    def get_actor_body_names(self, env_id, actor_id):
-        env_ptr = self.get_env(env_id)
-        body_names = self._gym.get_actor_rigid_body_names(env_ptr, actor_id)
-        return body_names
     
     def get_control_mode(self):
         return self._control_mode
@@ -439,6 +429,37 @@ class IsaacGymEngine(engine.Engine):
         self._apply_forces_callback = callback
         return
 
+    def _load_asset(self, file, fix_base):
+        if (file in self._asset_cache):
+            asset = self._asset_cache[file]
+
+        else:
+            asset_options = gymapi.AssetOptions()
+            asset_options.angular_damping = 0.01
+            asset_options.max_angular_velocity = 100.0
+            asset_options.fix_base_link = fix_base
+
+            file_dir = os.path.dirname(file)
+            file_name = os.path.basename(file)
+            asset = self._gym.load_asset(self._sim, file_dir, file_name, asset_options)
+
+            self._asset_cache[file] = asset
+
+        return asset
+    
+    
+    def _build_ground_plane(self, config):
+        plane_config = config["plane"]
+
+        plane_params = gymapi.PlaneParams()
+        plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
+        plane_params.static_friction = plane_config["static_friction"]
+        plane_params.dynamic_friction = plane_config["dynamic_friction"]
+        plane_params.restitution = plane_config["restitution"]
+
+        self._gym.add_ground(self._sim, plane_params)
+        return
+    
     def _create_simulator(self, physics_engine, config, sim_timestep, visualize):
         sim_params = self._parse_sim_params(config, sim_timestep)
         compute_device_id = self._get_device_idx()
@@ -450,23 +471,24 @@ class IsaacGymEngine(engine.Engine):
         sim = self._gym.create_sim(compute_device_id, graphics_device_id, 
                                    physics_engine, sim_params)
         assert(sim is not None), "Failed to create simulator."
+        
         return sim
 
     def _apply_cmd(self):
         if (self._has_dof()):
-            if (self._control_mode == ControlMode.none):
+            if (self._control_mode == engine.ControlMode.none):
                 pass
-            elif (self._control_mode == ControlMode.pos):
+            elif (self._control_mode == engine.ControlMode.pos):
                 cmd_buf = self._get_dof_cmd_buf()
                 cmd_tensor = gymtorch.unwrap_tensor(cmd_buf)
                 self._gym.set_dof_position_target_tensor(self._sim, cmd_tensor)
-            elif (self._control_mode == ControlMode.vel):
+            elif (self._control_mode == engine.ControlMode.vel):
                 cmd_buf = self._get_dof_cmd_buf()
                 cmd_tensor = gymtorch.unwrap_tensor(cmd_buf)
                 self._gym.set_dof_velocity_target_tensor(self._sim, cmd_tensor)
-            elif (self._control_mode == ControlMode.torque):
+            elif (self._control_mode == engine.ControlMode.torque):
                 pass
-            elif (self._control_mode == ControlMode.pd_1d):
+            elif (self._control_mode == engine.ControlMode.pd_1d):
                 pass
             else:
                 assert(False), "Unsupported control mode: {}".format(self._control_mode)
@@ -475,17 +497,17 @@ class IsaacGymEngine(engine.Engine):
 
     def _pre_sim_step(self):
         if (self._apply_forces_callback is not None
-            or self._control_mode == ControlMode.pd_1d):
+            or self._control_mode == engine.ControlMode.pd_1d):
             self._gym.refresh_dof_state_tensor(self._sim)
 
         if (self._apply_forces_callback is not None):
             self._apply_forces_callback()
 
-        if (self._control_mode == ControlMode.torque):
+        if (self._control_mode == engine.ControlMode.torque):
             cmd_buf = self._get_dof_cmd_buf()
             self._set_actuation_torque(cmd_buf)
 
-        elif (self._control_mode == ControlMode.pd_1d):
+        elif (self._control_mode == engine.ControlMode.pd_1d):
             torque = self._calc_pd_1d_torque()
             self._set_actuation_torque(torque)
 
@@ -529,15 +551,15 @@ class IsaacGymEngine(engine.Engine):
         return
     
     def _control_mode_to_drive_mode(self, mode):
-        if (mode == ControlMode.none):
+        if (mode == engine.ControlMode.none):
             drive_mode = gymapi.DOF_MODE_NONE
-        elif (mode == ControlMode.pos):
+        elif (mode == engine.ControlMode.pos):
             drive_mode = gymapi.DOF_MODE_POS
-        elif (mode == ControlMode.vel):
+        elif (mode == engine.ControlMode.vel):
             drive_mode = gymapi.DOF_MODE_VEL
-        elif (mode == ControlMode.torque):
+        elif (mode == engine.ControlMode.torque):
             drive_mode = gymapi.DOF_MODE_EFFORT   
-        elif (mode == ControlMode.pd_1d):
+        elif (mode == engine.ControlMode.pd_1d):
             drive_mode = gymapi.DOF_MODE_EFFORT 
         else:
             assert(False), "Unsupported control mode: {}".format(mode)
@@ -585,17 +607,17 @@ class IsaacGymEngine(engine.Engine):
         return device_idx
     
     def _modify_control_mode_dof_prop(self, control_mode, dof_prop):
-        if (control_mode == ControlMode.none):
+        if (control_mode == engine.ControlMode.none):
             dof_prop["stiffness"] = 0.0
             dof_prop["damping"] = 0.0
-        elif (control_mode == ControlMode.pos):
+        elif (control_mode == engine.ControlMode.pos):
             pass
-        elif (control_mode == ControlMode.vel):
+        elif (control_mode == engine.ControlMode.vel):
             dof_prop["stiffness"] = 0.0
-        elif (control_mode == ControlMode.torque):
+        elif (control_mode == engine.ControlMode.torque):
             dof_prop["stiffness"] = 0.0
             dof_prop["damping"] = 0.0
-        elif (control_mode == ControlMode.pd_1d):
+        elif (control_mode == engine.ControlMode.pd_1d):
             dof_prop["stiffness"] = 0.0
             dof_prop["damping"] = 0.0
         else:
