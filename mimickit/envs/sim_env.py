@@ -2,7 +2,7 @@ import isaacgym.gymapi as gymapi
 
 import abc
 import envs.base_env as base_env
-import gym.spaces as spaces
+import gymnasium.spaces as spaces
 import numpy as np
 import torch
 

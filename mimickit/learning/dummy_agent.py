@@ -1,4 +1,4 @@
-import gym.spaces as spaces
+import gymnasium.spaces as spaces
 import torch
 
 import learning.base_agent as base_agent

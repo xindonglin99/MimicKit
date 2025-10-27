@@ -1,6 +1,6 @@
 import abc
 import enum
-import gym.spaces as spaces
+import gymnasium.spaces as spaces
 import numpy as np
 
 import util.torch_util as torch_util
