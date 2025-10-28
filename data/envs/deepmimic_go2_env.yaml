@@ -21,7 +21,7 @@ env:
     enable_early_termination: True
     termination_height: 0.15
     key_bodies: ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
-    contact_bodies: ["FR_calf", "FR_foot", "FL_calf", "FL_foot", "RR_calf", "RR_foot", "RL_calf", "RL_foot"]
+    contact_bodies: ["FR_foot", "FL_foot", "RR_foot", "RL_foot"]
     
     motion_file: "data/motions/go2/go2_pace.pkl"
     
