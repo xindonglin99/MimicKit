@@ -1,4 +1,5 @@
 import enum
+import numpy as np
 import pickle
 
 class LoopMode(enum.Enum):
@@ -14,6 +15,7 @@ def load_motion(file):
         frames = in_dict["frames"]
         
         loop_mode = LoopMode(loop_mode_val)
+        frames = np.array(frames, dtype=np.float32)
 
         motion_data = Motion(loop_mode=loop_mode,
                              fps=fps,
@@ -29,10 +31,13 @@ class Motion():
 
     def save(self, out_file):
         with open(out_file, "wb") as out_f:
+            loop_mode = self.loop_mode.value
+            frames = self.frames.tolist()
+
             out_dict = {
-                "loop_mode": self.loop_mode.value,
+                "loop_mode": loop_mode,
                 "fps": self.fps,
-                "frames": self.frames
+                "frames": frames
             }
             pickle.dump(out_dict, out_f)
         return
