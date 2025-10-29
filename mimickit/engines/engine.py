@@ -1,4 +1,12 @@
 import abc
+import enum
+
+class ControlMode(enum.Enum):
+    none = 0
+    pos = 1
+    vel = 2
+    torque = 3
+    pd_1d = 4
 
 class Engine:
     def __init__(self):
@@ -8,6 +16,11 @@ class Engine:
     def create_env(self, env_id):
         return
     
+    @abc.abstractmethod
+    def create_actor(self, env_id, asset_file, name, is_visual=False, enable_self_collisions=True, 
+                     fix_base=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
+        return
+
     @abc.abstractmethod
     def finalize_sim(self):
         return
@@ -142,6 +155,21 @@ class Engine:
     def find_actor_body_id(self, env_id, actor_id, body_name):
         return 
     
-
+    @abc.abstractmethod
+    def get_actor_torque_lim(self, actor_id):
+        return
+    
+    @abc.abstractmethod
+    def get_actor_dof_limits(self, env_id, actor_id):
+        return
+    
+    @abc.abstractmethod
+    def calc_actor_mass(self, env_id, actor_id):
+        return
+    
+    @abc.abstractmethod
+    def get_control_mode(self):
+        return
+    
     def draw_lines(self, env_id, verts, cols):
         return

@@ -32,8 +32,8 @@ class AMPModel(ppo_model.PPOModel):
         return
 
     def _build_disc(self, config, env):
+        init_output_scale = 1.0
         net_name = config["disc_net"]
-        init_output_scale = config["disc_init_output_scale"]
 
         input_dict = self._build_disc_input_dict(env)
         self._disc_layers, layers_info = net_builder.build_net(net_name, input_dict,

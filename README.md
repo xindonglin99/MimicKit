@@ -3,7 +3,7 @@
 
 ![Teaser](images/MimicKit_teaser.gif)
 
-This framework provides a suite of motion imitation methods for training motion controllers. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). This codebase includes implementations of:
+This framework provides a suite of motion imitation methods for training motion controllers. This codebase is designed to be clean and lightweight, with minimal dependencies. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). This codebase includes implementations of:
 - [DeepMimic](https://xbpeng.github.io/projects/DeepMimic/index.html)
 - [AMP](https://xbpeng.github.io/projects/AMP/index.html)
 - [ASE](https://xbpeng.github.io/projects/ASE/index.html)
@@ -71,7 +71,7 @@ python mimickit/run.py --arg_file args/deepmimic_humanoid_ppo_args.txt --num_wor
 
 When using the TensorBoard logger during training, a TensorBoard `events` file will be saved the same output directory as the log file. The log can be viewed with:
 ```
-tensorboard --logdir=output/ --port=6006 --bind_all --samples_per_plugin scalars=999999
+tensorboard --logdir=output/ --port=6006 --samples_per_plugin scalars=999999
 ```
 The output log `.txt` file can also be plotted using the plotting script [`plot_log.py`](tools/plot_log/plot_log.py).
 
@@ -89,7 +89,7 @@ Motion clips are represented by the `Motion` class implemented in [`motion.py`](
 ```
 [root position (3D), root rotation (3D), joint rotations]
 ```
-where 3D rotations are specified using 3D exponential maps. Joint rotations are recorded in the order that the joints are specified in the `.xml` file (i.e. depth-first traversal of the kinematic tree). For example, in the case of [`humanoid.xml`](data/assets/humanoid.xml), each frame is represented as
+where 3D rotations are specified using 3D exponential maps. Joint rotations are recorded in the order that the joints are specified in the `.xml` file (i.e. depth-first traversal of the kinematic tree). For example, in the case of [`humanoid.xml`](data/assets/humanoid/humanoid.xml), each frame is represented as
 ```
 [root position (3D), root rotation (3D), abdomen (3D), neck (3D), right_shoulder (3D), right_elbow (1D), left_shoulder (3D), left_elbow (1D), right_hip (3D), right_knee (1D), right_ankle (3D), left_hip (3D), left_knee (1D), left_ankle (3D)]
 ```

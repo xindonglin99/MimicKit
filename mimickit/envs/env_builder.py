@@ -36,6 +36,9 @@ def build_env(env_file, num_envs, device, visualize):
     elif (env_name == "task_steering"):
         import envs.task_steering_env as task_steering_env
         env = task_steering_env.TaskSteeringEnv(config=env_config, num_envs=num_envs, device=device, visualize=visualize)
+    elif (env_name == "static_objects"):
+        import envs.static_objects_env as static_objects_env
+        env = static_objects_env.StaticObjectsEnv(config=env_config, num_envs=num_envs, device=device, visualize=visualize)
     else:
         assert(False), "Unsupported env: {}".format(env_name)
 

@@ -4,7 +4,6 @@ This guide demonstrates how to convert motion data from GMR format to MimicKit f
 
 **Prerequisites:** 
 
-- Make sure you run GMR with `numpy==1.24.4` to use this script.
 - All commands should be run from the root directory of the repository (`MimicKit/`).
 
 

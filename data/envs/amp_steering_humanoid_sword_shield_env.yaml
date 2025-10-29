@@ -30,8 +30,6 @@ env:
 
     motion_file: "data/datasets/dataset_humanoid_sword_shield_locomotion.yaml"
     
-    joint_err_w: [1.0, 0.6, 0.6, 0.4, 0.4, 0.0, 0.6, 0.4, 0.0, 0.0, 1.0, 0.6, 0.4, 1.0, 0.6, 0.4]
-    
     reward_pose_w: 0.5
     reward_vel_w: 0.1
     reward_root_pose_w: 0.15

@@ -11,8 +11,11 @@ env:
     pose_termination_dist: 1.0 # m
     enable_phase_obs: False
     enable_tar_obs: True
+    num_phase_encoding: 4
+    tar_obs_steps: [1, 2, 3]
     num_disc_obs_steps: 1
     rand_reset: True
+    log_tracking_error: True
 
     ref_char_offset: [2.0, 0.0, 0.0] # m
     init_pose: [0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1.5708, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.5708, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -26,8 +29,6 @@ env:
     
     motion_file: "data/motions/smpl/smpl_walk.pkl"
 
-    joint_err_w: [1.0, 0.6, 0.4, 0.3, 1.0, 0.6, 0.4, 0.3, 1.0, 0.6, 0.6, 0.4, 0.4, 1.0, 0.6, 0.4, 0.3, 0.2, 1.0, 0.6, 0.4, 0.3, 0.2]
-  
     reward_pose_w: 0.5
     reward_vel_w: 0.1
     reward_root_pose_w: 0.15

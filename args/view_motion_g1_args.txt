@@ -2,7 +2,6 @@
 --num_envs 4
 
 --env_config data/envs/view_motion_g1_env.yaml
---agent_config data/agents/deepmimic_g1_ppo_agent.yaml
 
 --log_file output/log.txt
 --out_model_file output/model.pt
