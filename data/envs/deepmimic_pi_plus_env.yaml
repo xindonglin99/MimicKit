@@ -21,8 +21,8 @@ env:
 
     enable_early_termination: True
     termination_height: 0.25 # from beyondmimic 0.25m
-    key_bodies: ["l_ankle_roll_link"] # try without head
-    contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link"]
+    key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"] # try without head
+    contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link"] # walk
     # contact_bodies: ["l_calf_link", "l_ankle_pitch_link", "l_ankle_roll_link", "r_calf_link", "r_ankle_pitch_link", "r_ankle_roll_link"] # Try
     #contact_bodies: ["left_knee_link", "left_ankle_pitch_link", "left_ankle_roll_link", "right_knee_link", "right_ankle_pitch_link", "right_ankle_roll_link", "left_elbow_link", "left_wrist_roll_link", "left_wrist_pitch_link", "left_wrist_yaw_link", "right_elbow_link", "right_wrist_roll_link", "right_wrist_pitch_link", "right_wrist_yaw_link"] # cartwheel
     log_tracking_error: False # For debugging now
