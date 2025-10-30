@@ -17,7 +17,7 @@ env:
     zero_center_action: True
 
     ref_char_offset: [2.0, 0.0, 0.0] # m
-    init_pose: [0, 0, 0.4, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0] # 6+22=28, not important since RSI is used
+    init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0] # 6+22=28, not important since RSI is used
 
     enable_early_termination: True
     termination_height: 0.25 # from beyondmimic 0.25m
@@ -27,7 +27,7 @@ env:
     #contact_bodies: ["left_knee_link", "left_ankle_pitch_link", "left_ankle_roll_link", "right_knee_link", "right_ankle_pitch_link", "right_ankle_roll_link", "left_elbow_link", "left_wrist_roll_link", "left_wrist_pitch_link", "left_wrist_yaw_link", "right_elbow_link", "right_wrist_roll_link", "right_wrist_pitch_link", "right_wrist_yaw_link"] # cartwheel
     log_tracking_error: False # For debugging now
 
-    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk1_subject1_mimickit_60_300.pkl"
+    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk.pkl"
 
     joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.5, knees 0.6, ankles 0.5
     
