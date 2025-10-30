@@ -163,6 +163,10 @@ class BaseAgent(torch.nn.Module):
         if (isinstance(a_space, spaces.Box)):
             a_mean = torch.tensor(0.5 * (a_space.high + a_space.low), device=self._device, dtype=a_dtype)
             a_std = torch.tensor(0.5 * (a_space.high - a_space.low), device=self._device, dtype=a_dtype)
+            
+            # ensure initialized std is strictly greater than 0 to avoid degenerate normalizer
+            assert (a_std > 0).all().item(), "init_std must be > 0 for action normalizer (Box action space wrong! Check your XML file. Joints must have 'limited=true' and non-zero bounds.)"
+
             a_norm = normalizer.Normalizer(a_mean.shape, device=self._device, init_mean=a_mean, 
                                                  init_std=a_std, dtype=a_dtype)
         elif (isinstance(a_space, spaces.Discrete)):
@@ -171,7 +175,7 @@ class BaseAgent(torch.nn.Module):
             a_norm = normalizer.Normalizer(a_mean.shape, device=self._device, init_mean=a_mean, 
                                                  init_std=a_std, min_std=0, dtype=a_dtype)
         else:
-            assert(False), "Unsuppoted action space: {}".format(a_space)
+            assert(False), "Unsupported action space: {}".format(a_space)
         return a_norm
 
     def _build_optimizer(self, config):

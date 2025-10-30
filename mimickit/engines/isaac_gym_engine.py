@@ -150,9 +150,9 @@ class IsaacGymEngine(engine.Engine):
         else:
             control_mode = self.get_control_mode()
 
-        dof_prop = self._gym.get_actor_dof_properties(env_ptr, actor_id)
-        kp = dof_prop["stiffness"]
-        kd = dof_prop["damping"]
+        dof_props = self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        kp = dof_props["stiffness"]
+        kd = dof_props["damping"]
         
         actuator_props = self._gym.get_actor_actuator_properties(env_ptr, actor_id)
         motor_efforts = [prop.motor_effort for prop in actuator_props]
@@ -170,10 +170,10 @@ class IsaacGymEngine(engine.Engine):
         assert(actor_id == len(self._actor_torque_lim[env_id]) - 1)
 
         drive_mode = self._control_mode_to_drive_mode(control_mode)
-        dof_prop["driveMode"] = drive_mode
-        self._modify_control_mode_dof_prop(control_mode, dof_prop)
+        dof_props["driveMode"] = drive_mode
+        self._modify_control_mode_dof_props(control_mode, dof_props)
 
-        self._gym.set_actor_dof_properties(env_ptr, actor_id, dof_prop)
+        self._gym.set_actor_dof_properties(env_ptr, actor_id, dof_props)
 
         if (color is not None):
             num_bodies = self._gym.get_actor_rigid_body_count(env_ptr, actor_id)
@@ -382,9 +382,27 @@ class IsaacGymEngine(engine.Engine):
     
     def get_actor_dof_limits(self, env_id, actor_id):
         env_ptr = self.get_env(env_id)
-        dof_prop = self._gym.get_actor_dof_properties(env_ptr, actor_id)
-        dof_low = dof_prop["lower"]
-        dof_high = dof_prop["upper"]
+        dof_props = self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        dof_low = dof_props["lower"]
+        dof_high = dof_props["upper"]
+
+        low_arr = np.asarray(dof_low)
+        high_arr = np.asarray(dof_high)
+
+        # Sanity checks per-DOF - raise exceptions for bad limits
+        THRESHOLD = 1e8
+        for i, (l, h) in enumerate(zip(low_arr, high_arr)):
+            # both bounds zero
+            if l == 0 and h == 0:
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Mimickit requires either limit to be non-zero for all DoFs.")
+
+            # infinite or NaN bounds
+            if not np.isfinite(l) or not np.isfinite(h):
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+
+            # extremely large magnitude bounds (likely a placeholder for +/-inf)
+            if abs(l) > THRESHOLD or abs(h) > THRESHOLD:
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
         return dof_low, dof_high
     
     def find_actor_body_id(self, env_id, actor_id, body_name):
@@ -606,20 +624,20 @@ class IsaacGymEngine(engine.Engine):
             device_idx = int(self._device[num_idx:])
         return device_idx
     
-    def _modify_control_mode_dof_prop(self, control_mode, dof_prop):
+    def _modify_control_mode_dof_props(self, control_mode, dof_props):
         if (control_mode == engine.ControlMode.none):
-            dof_prop["stiffness"] = 0.0
-            dof_prop["damping"] = 0.0
+            dof_props["stiffness"] = 0.0
+            dof_props["damping"] = 0.0
         elif (control_mode == engine.ControlMode.pos):
             pass
         elif (control_mode == engine.ControlMode.vel):
-            dof_prop["stiffness"] = 0.0
+            dof_props["stiffness"] = 0.0
         elif (control_mode == engine.ControlMode.torque):
-            dof_prop["stiffness"] = 0.0
-            dof_prop["damping"] = 0.0
+            dof_props["stiffness"] = 0.0
+            dof_props["damping"] = 0.0
         elif (control_mode == engine.ControlMode.pd_1d):
-            dof_prop["stiffness"] = 0.0
-            dof_prop["damping"] = 0.0
+            dof_props["stiffness"] = 0.0
+            dof_props["damping"] = 0.0
         else:
             assert(False), "Unsupported control mode: {}".format(control_mode)
 
