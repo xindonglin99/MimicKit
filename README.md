@@ -69,7 +69,7 @@ python mimickit/run.py --arg_file args/deepmimic_humanoid_ppo_args.txt --num_wor
 
 ## Visualizing Training Logs
 
-When using the TensorBoard logger during training, a TensorBoard `events` file will be saved the same output directory as the log file. The log can be viewed with:
+When using the TensorBoard logger during training, a TensorBoard `events` file will be saved in the same output directory as the log file. The log can be viewed with:
 ```
 tensorboard --logdir=output/ --port=6006 --samples_per_plugin scalars=999999
 ```
