@@ -22,14 +22,14 @@ env:
     enable_early_termination: True
     termination_height: 0.25 # from beyondmimic 0.25m
     key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"] # try without head
-    contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link"] # walk
+    contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link", "l_calf_link", "r_calf_link"] # walk
     # contact_bodies: ["l_calf_link", "l_ankle_pitch_link", "l_ankle_roll_link", "r_calf_link", "r_ankle_pitch_link", "r_ankle_roll_link"] # Try
     #contact_bodies: ["left_knee_link", "left_ankle_pitch_link", "left_ankle_roll_link", "right_knee_link", "right_ankle_pitch_link", "right_ankle_roll_link", "left_elbow_link", "left_wrist_roll_link", "left_wrist_pitch_link", "left_wrist_yaw_link", "right_elbow_link", "right_wrist_roll_link", "right_wrist_pitch_link", "right_wrist_yaw_link"] # cartwheel
     log_tracking_error: False # For debugging now
 
-    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk.pkl"
+    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk_50fps.pkl"
 
-    joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.5, knees 0.6, ankles 0.5
+    joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.7, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.7] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.7 (new), knees 0.6, ankles 0.5
     
     # Seems not need to tune for now
     reward_pose_w: 0.5
