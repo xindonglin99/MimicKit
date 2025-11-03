@@ -389,20 +389,20 @@ class IsaacGymEngine(engine.Engine):
         low_arr = np.asarray(dof_low)
         high_arr = np.asarray(dof_high)
 
-        # sanity checks per-DOF (print warnings instead of using logger)
+        # Sanity checks per-DOF - raise exceptions for bad limits
         THRESHOLD = 1e8
         for i, (l, h) in enumerate(zip(low_arr, high_arr)):
             # both bounds zero
             if l == 0 and h == 0:
-                print(f"Warning: Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. MimicKit requires either bound to be non-zero.")
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Mimickit requires either limit to be non-zero for all DoFs.")
 
             # infinite or NaN bounds
             if not np.isfinite(l) or not np.isfinite(h):
-                print(f"Warning: Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
 
             # extremely large magnitude bounds (likely a placeholder for +/-inf)
             if abs(l) > THRESHOLD or abs(h) > THRESHOLD:
-                print(f"Warning: Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
         return dof_low, dof_high
     
     def find_actor_body_id(self, env_id, actor_id, body_name):
