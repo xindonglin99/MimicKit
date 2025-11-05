@@ -11,6 +11,7 @@ Usage:
         --loop {wrap,clamp}     Loop mode for the motion (default: wrap)
         --start_frame INT       Start frame for motion clipping (default: 0)
         --end_frame INT         End frame for motion clipping (default: -1, uses all frames)
+        --output_fps INT        Frame rate for the output motion (default: same as input)
     
 GMR Format:
     The input GMR format should be a pickle file containing a dictionary with keys:
@@ -38,7 +39,7 @@ sys.path.append(".")  # Ensure the repository root is on sys.path so we can use 
 from mimickit.anim.motion import Motion, LoopMode
 from mimickit.util.torch_util import quat_to_exp_map
 
-def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame):
+def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_frame, end_frame, output_fps):
     """
     Convert a GMR compatible motion dataset to MimicKit compatible dataset.
     
@@ -97,8 +98,10 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     assert 0 <= start_frame < end_frame <= frames.shape[0], "Invalid start_frame or end_frame."
     frames = frames[start_frame:end_frame, :]
 
-    out_data = Motion(loop_mode=loop_mode_out, fps=fps, frames=frames)
-    
+    save_fps = fps if output_fps == -1 else output_fps
+
+    out_data = Motion(loop_mode=loop_mode_out, fps=save_fps, frames=frames)
+
     # Save to MimicKit format
     out_data.save(output_file_path)
     
@@ -110,7 +113,7 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
     print("-"*60)
     print(f"📊 Frames Shape:  {frames.shape}")
     print(f"🎬 Total Frames: {frames.shape[0]}")
-    print(f"⏱️  FPS:          {fps}")
+    print(f"⏱️  FPS:          {save_fps}")
     print(f"🔄 Loop Mode:    {loop_mode_out}")
     print("="*60 + "\n")
 
@@ -123,9 +126,10 @@ def main():
     parser.add_argument("--loop", default="wrap", choices=["wrap", "clamp"], help="Enable loop mode on the converted motion")
     parser.add_argument("--start_frame", type=int, default=0, help="Start frame for chopping the motion")
     parser.add_argument("--end_frame", type=int, default=-1, help="End frame for chopping the motion")
+    parser.add_argument("--output_fps", type=int, default=-1, help="Frame rate for the output motion (default: same as input)")
     args = parser.parse_args()
 
-    convert_gmr_to_mimickit(args.input_file, args.output_file, loop_mode=args.loop, start_frame=args.start_frame, end_frame=args.end_frame)
+    convert_gmr_to_mimickit(args.input_file, args.output_file, loop_mode=args.loop, start_frame=args.start_frame, end_frame=args.end_frame, output_fps=args.output_fps)
 
 
 if __name__ == "__main__":
