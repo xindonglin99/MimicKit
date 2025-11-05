@@ -26,9 +26,6 @@ class MotionLib():
     def get_total_length(self):
         return torch.sum(self._motion_lengths).item()
 
-    def get_motion(self, motion_id):
-        return self._motions[motion_id]
-
     def sample_motions(self, n):
         motion_ids = torch.multinomial(self._motion_weights, num_samples=n, replacement=True)
         return motion_ids
