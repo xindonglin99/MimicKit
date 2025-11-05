@@ -27,9 +27,9 @@ env:
     #contact_bodies: ["left_knee_link", "left_ankle_pitch_link", "left_ankle_roll_link", "right_knee_link", "right_ankle_pitch_link", "right_ankle_roll_link", "left_elbow_link", "left_wrist_roll_link", "left_wrist_pitch_link", "left_wrist_yaw_link", "right_elbow_link", "right_wrist_roll_link", "right_wrist_pitch_link", "right_wrist_yaw_link"] # cartwheel
     log_tracking_error: False # For debugging now
 
-    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk_50fps.pkl"
+    motion_file: "data/motions/hightorque/pi_plus/mimickit/walk_50fps_clamp.pkl"
 
-    joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.7, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.7] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.7 (new), knees 0.6, ankles 0.5
+    joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.5, knees 0.6, ankles 0.5
     
     # Seems not need to tune for now
     reward_pose_w: 0.5
