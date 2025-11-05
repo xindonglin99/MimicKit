@@ -152,7 +152,6 @@ class MotionLib():
         return
 
     def _load_motion_pkl(self, motion_file):
-        self._motions = []
         self._motion_weights = []
         self._motion_fps = []
         self._motion_dt = []
@@ -203,7 +202,6 @@ class MotionLib():
 
             dof_vel = self._kin_char_model.compute_frame_dof_vel(joint_rot, dt)
 
-            self._motions.append(curr_motion)
             self._motion_weights.append(curr_weight)
             self._motion_fps.append(fps)
             self._motion_dt.append(dt)
