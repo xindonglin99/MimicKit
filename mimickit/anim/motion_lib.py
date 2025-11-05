@@ -14,21 +14,10 @@ def extract_pose_data(frame):
     joint_dof = frame[..., 6:]
     return root_pos, root_rot, joint_dof
 
-def extract_pose_data_quat(frame):
-    root_pos = frame[..., 0:3]
-    root_rot = frame[..., 3:7] # NOTE: quaternion (x, y, z, w) for IsaacGym, need conversion if using other engines
-    joint_dof = frame[..., 7:]
-    return root_pos, root_rot, joint_dof
-
-class RotationType(enum.Enum):
-    EXP_MAP = 0
-    QUAT = 1
-
 class MotionLib():
-    def __init__(self, motion_file, kin_char_model, device, motion_rotation_type=RotationType.EXP_MAP.value):
+    def __init__(self, motion_file, kin_char_model, device):
         self._device = device
         self._kin_char_model = kin_char_model
-        self._motion_rotation_type = motion_rotation_type
         self._load_motions(motion_file)
         return
 
@@ -107,24 +96,12 @@ class MotionLib():
         return self._motion_weights
     
     def _extract_frame_data(self, frame):
-        if (self._motion_rotation_type == RotationType.EXP_MAP.value):
-            root_pos, root_rot, joint_dof = extract_pose_data(frame)
-        elif (self._motion_rotation_type == RotationType.QUAT.value):
-            root_pos, root_rot, joint_dof = extract_pose_data_quat(frame)
-        else:
-            raise Exception("Unsupported rotation type: {}".format(self._motion_rotation_type))
-
-        # root_pos, root_rot, joint_dof = extract_pose_data(frame)
+        root_pos, root_rot, joint_dof = extract_pose_data(frame)
         root_pos = torch.tensor(root_pos, dtype=torch.float32, device=self._device)
         root_rot = torch.tensor(root_rot, dtype=torch.float32, device=self._device)
         joint_dof = torch.tensor(joint_dof, dtype=torch.float32, device=self._device)
 
-        if (self._motion_rotation_type == RotationType.EXP_MAP.value):
-            root_rot_quat = torch_util.exp_map_to_quat(root_rot)
-        elif (self._motion_rotation_type == RotationType.QUAT.value):
-            root_rot_quat = root_rot
-        else:
-            raise Exception("Unsupported rotation type: {}".format(self._motion_rotation_type))
+        root_rot_quat = torch_util.exp_map_to_quat(root_rot)
 
         joint_rot = self._kin_char_model.dof_to_rot(joint_dof)
         joint_rot = torch_util.quat_pos(joint_rot)

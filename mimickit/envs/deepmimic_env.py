@@ -39,7 +39,6 @@ class DeepMimicEnv(char_env.CharEnv):
         self._reward_key_pos_scale = env_config.get("reward_key_pos_scale")
         
         self._visualize_ref_char = env_config.get("visualize_ref_char", True)
-        self._motion_rotation_type = env_config.get("motion_rotation_type", motion_lib.RotationType.EXP_MAP.value)
         
         super().__init__(config=config, num_envs=num_envs, device=device,
                          visualize=visualize)
@@ -101,8 +100,7 @@ class DeepMimicEnv(char_env.CharEnv):
     def _load_motions(self, motion_file):
         self._motion_lib = motion_lib.MotionLib(motion_file=motion_file, 
                                                 kin_char_model=self._kin_char_model,
-                                                device=self._device,
-                                                motion_rotation_type=self._motion_rotation_type)
+                                                device=self._device)
         return
     
     def _parse_joint_err_weights(self, joint_err_w):

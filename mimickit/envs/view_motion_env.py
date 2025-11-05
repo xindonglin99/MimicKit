@@ -10,7 +10,6 @@ import torch
 class ViewMotionEnv(char_env.CharEnv):
     def __init__(self, config, num_envs, device, visualize):
         self._time_scale = 1.0
-        self._motion_rotation_type = config["env"].get("motion_rotation_type", motion_lib.RotationType.EXP_MAP.value)
 
         super().__init__(config=config, num_envs=num_envs, device=device,
                          visualize=visualize)
@@ -36,8 +35,7 @@ class ViewMotionEnv(char_env.CharEnv):
     def _load_motions(self, motion_file):
         self._motion_lib = motion_lib.MotionLib(motion_file=motion_file, 
                                                 kin_char_model=self._kin_char_model,
-                                                device=self._device,
-                                                motion_rotation_type=self._motion_rotation_type)
+                                                device=self._device)
         return
 
     def _update_misc(self):

@@ -12,8 +12,6 @@ env:
 
     motion_file: "data/motions/hightorque/pi_plus/mimickit/walk_50fps.pkl"
 
-    motion_rotation_type: 0 # exp_map: 0, quat: 1
-
 engine:
     engine_name: "isaac_gym"
     
