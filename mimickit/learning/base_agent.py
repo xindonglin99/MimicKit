@@ -424,7 +424,15 @@ class BaseAgent(torch.nn.Module):
             if torch.is_tensor(v):
                 v = v.item()
             self._logger.log(val_name, v, collection="2_Env", quiet=True)
-            
+        
+        obs_norm_mean = self._obs_norm.get_mean()
+        obs_norm_std = self._obs_norm.get_std()
+        obs_norm_mean = torch.mean(torch.abs(obs_norm_mean)).item()
+        obs_norm_std = torch.mean(obs_norm_std).item()
+
+        self._logger.log("Obs_Norm_Mean", obs_norm_mean, quiet=True)
+        self._logger.log("Obs_Norm_Std", obs_norm_std, quiet=True)
+        
         return
     
     def _compute_action_bound_loss(self, norm_a_dist):

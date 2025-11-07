@@ -1,7 +1,10 @@
 # MimicKit
 
-
-![Teaser](images/MimicKit_teaser.gif)
+<p align="center">
+  <img src="images/teaser_humanoid.gif" width="32%" style="margin-right: 1px;">
+  <img src="images/teaser_g1.gif" width="32%" style="margin-right: 1px;">
+  <img src="images/teaser_go2.gif" width="32%">
+</p>
 
 This framework provides a suite of motion imitation methods for training motion controllers. This codebase is designed to be clean and lightweight, with minimal dependencies. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). This codebase includes implementations of:
 - [DeepMimic](https://xbpeng.github.io/projects/DeepMimic/index.html)
@@ -189,7 +192,23 @@ Please also consider citing the relevant papers:
 }
 
 @inproceedings{
-    zhang2025ADD,
+	xu2025parc,
+	author = {Xu, Michael and Shi, Yi and Yin, KangKang and Peng, Xue Bin},
+	title = {PARC: Physics-based Augmentation with Reinforcement Learning for Character Controllers},
+	year = {2025},
+	isbn = {9798400715402},
+	publisher = {Association for Computing Machinery},
+	address = {New York, NY, USA},
+	url = {https://doi.org/10.1145/3721238.3730616},
+	doi = {10.1145/3721238.3730616},
+	booktitle = {Proceedings of the Special Interest Group on Computer Graphics and Interactive Techniques Conference Conference Papers},
+	articleno = {131},
+	numpages = {11},
+	series = {SIGGRAPH Conference Papers '25}
+}
+
+@inproceedings{
+	zhang2025ADD,
     author={Zhang, Ziyu and Bashkirov, Sergey and Yang, Dun and Shi, Yi and Taylor, Michael and Peng, Xue Bin},
     title = {Physics-Based Motion Imitation with Adversarial Differential Discriminators},
     year = {2025},

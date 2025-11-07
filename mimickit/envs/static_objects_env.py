@@ -1,7 +1,7 @@
-import envs.add_env as add_env
+import envs.deepmimic_env as deepmimic_env
 import numpy as np
 
-class StaticObjectsEnv(add_env.ADDEnv):
+class StaticObjectsEnv(deepmimic_env.DeepMimicEnv):
     def __init__(self, config, num_envs, device, visualize):
         super().__init__(config=config, num_envs=num_envs, device=device, visualize=visualize)
         return

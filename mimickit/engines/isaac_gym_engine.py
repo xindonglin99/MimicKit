@@ -390,19 +390,20 @@ class IsaacGymEngine(engine.Engine):
         high_arr = np.asarray(dof_high)
 
         # Sanity checks per-DOF - raise exceptions for bad limits
-        THRESHOLD = 1e8
+        threshold = 1e8
         for i, (l, h) in enumerate(zip(low_arr, high_arr)):
             # both bounds zero
             if l == 0 and h == 0:
-                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Mimickit requires either limit to be non-zero for all DoFs.")
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Either upper or lower limit must be non-zero for all DoFs.")
 
             # infinite or NaN bounds
             if not np.isfinite(l) or not np.isfinite(h):
                 raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
 
             # extremely large magnitude bounds (likely a placeholder for +/-inf)
-            if abs(l) > THRESHOLD or abs(h) > THRESHOLD:
+            if (abs(l) > threshold or abs(h) > threshold):
                 raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+
         return dof_low, dof_high
     
     def find_actor_body_id(self, env_id, actor_id, body_name):
