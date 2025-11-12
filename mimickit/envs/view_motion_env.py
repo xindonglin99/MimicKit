@@ -29,6 +29,7 @@ class ViewMotionEnv(char_env.CharEnv):
                                              asset_file=char_file, 
                                              name="character",
                                              enable_self_collisions=False,
+                                             disable_motors=True,
                                              color=color)
         return char_id
 

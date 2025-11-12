@@ -28,6 +28,11 @@ class CharEnv(sim_env.SimEnv):
 
         super().__init__(config=config, num_envs=num_envs, device=device,
                          visualize=visualize)
+        
+        char_id = self._get_char_id()
+        self._print_actor_prop(0, char_id)
+        self._validate_envs()
+
         return
 
     def _parse_init_pose(self, init_pose, device):
@@ -60,17 +65,11 @@ class CharEnv(sim_env.SimEnv):
             self._build_env(env_id, config)
 
         Logger.print("\n")
-
-        self._validate_envs()
-
         return
     
     def _build_env(self, env_id, config):
         char_col = self._get_char_color()
         char_id = self._build_character(env_id, config, color=char_col)
-
-        if (env_id == 0):
-            self._print_actor_prop(env_id, char_id)
 
         if (env_id == 0):
             self._char_ids.append(char_id)
@@ -213,10 +212,10 @@ class CharEnv(sim_env.SimEnv):
         high = np.array(torque_lim, dtype=np.float32)
         return low, high
     
-    def _print_actor_prop(self, env_id, char_id):
-        num_dofs = self._engine.get_actor_dof_count(env_id, char_id)
-        total_mass = self._engine.calc_actor_mass(env_id, char_id)
-        char_info = "Char properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(num_dofs, total_mass)
+    def _print_actor_prop(self, env_id, actor_id):
+        num_dofs = self._engine.get_actor_dof_count(env_id, actor_id)
+        total_mass = self._engine.calc_actor_mass(env_id, actor_id)
+        char_info = "Char {:d} properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(actor_id, num_dofs, total_mass)
         Logger.print(char_info)
         return
     

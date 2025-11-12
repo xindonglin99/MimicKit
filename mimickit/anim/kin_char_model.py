@@ -446,8 +446,6 @@ class KinCharModel():
     
     def output_xml(self, output_file):
         xml_template = """<mujoco model="character">
-    <statistic extent="2" center="0 0 1"/>
-
     <default>
         <motor ctrlrange="-1 1" ctrllimited="true"/>
         <default class="body">
@@ -457,7 +455,6 @@ class KinCharModel():
     </default>
 
     <worldbody>
-        <geom name="floor" type="plane" conaffinity="1" size="100 100 .2" material="grid"/>
 {:s}
     </worldbody>
 

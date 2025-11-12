@@ -49,7 +49,7 @@ class IsaacGymEngine(engine.Engine):
 
         self._apply_forces_callback = None
         
-        self._build_ground_plane(config)
+        self._build_ground_plane()
 
         if (visualize):
             self._build_viewer()
@@ -159,8 +159,8 @@ class IsaacGymEngine(engine.Engine):
         torque_lim = np.array(motor_efforts)
         
         if (control_mode == engine.ControlMode.none):
-            kp = kp * 0
-            kd = kd * 0
+            kp = np.zeros_like(kp)
+            kd = np.zeros_like(kd)
 
         self._actor_kp[env_id].append(torch.tensor(kp, device=self._device, dtype=torch.float32))
         self._actor_kd[env_id].append(torch.tensor(kd, device=self._device, dtype=torch.float32))
@@ -228,9 +228,10 @@ class IsaacGymEngine(engine.Engine):
             # this code will slow down the rendering to real time
             now = time.time()
             delta = now - self._prev_frame_time
+            time_step = self.get_timestep()
 
-            if (delta < self._timestep):
-                time.sleep(self._timestep - delta)
+            if (delta < time_step):
+                time.sleep(time_step - delta)
 
             self._prev_frame_time = time.time()
 
@@ -371,12 +372,6 @@ class IsaacGymEngine(engine.Engine):
             self._has_body_forces = True
         return
     
-    def get_actor_kp(self, actor_id):
-        return self._actor_kp[actor_id]
-    
-    def get_actor_kd(self, actor_id):
-        return self._actor_kd[actor_id]
-    
     def get_actor_torque_lim(self, env_id, actor_id):
         return self._actor_torque_lim[actor_id][env_id].cpu().numpy()
     
@@ -390,19 +385,20 @@ class IsaacGymEngine(engine.Engine):
         high_arr = np.asarray(dof_high)
 
         # Sanity checks per-DOF - raise exceptions for bad limits
-        THRESHOLD = 1e8
+        threshold = 1e8
         for i, (l, h) in enumerate(zip(low_arr, high_arr)):
             # both bounds zero
             if l == 0 and h == 0:
-                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Mimickit requires either limit to be non-zero for all DoFs.")
+                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Either upper or lower limit must be non-zero for all DoFs.")
 
             # infinite or NaN bounds
             if not np.isfinite(l) or not np.isfinite(h):
                 raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
 
             # extremely large magnitude bounds (likely a placeholder for +/-inf)
-            if abs(l) > THRESHOLD or abs(h) > THRESHOLD:
+            if (abs(l) > threshold or abs(h) > threshold):
                 raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+
         return dof_low, dof_high
     
     def find_actor_body_id(self, env_id, actor_id, body_name):
@@ -466,20 +462,20 @@ class IsaacGymEngine(engine.Engine):
         return asset
     
     
-    def _build_ground_plane(self, config):
-        plane_config = config["plane"]
-
+    def _build_ground_plane(self):
         plane_params = gymapi.PlaneParams()
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
-        plane_params.static_friction = plane_config["static_friction"]
-        plane_params.dynamic_friction = plane_config["dynamic_friction"]
-        plane_params.restitution = plane_config["restitution"]
+        plane_params.static_friction = 1.0
+        plane_params.dynamic_friction = 1.0
+        plane_params.restitution = 0.0
 
         self._gym.add_ground(self._sim, plane_params)
         return
     
     def _create_simulator(self, physics_engine, config, sim_timestep, visualize):
-        sim_params = self._parse_sim_params(config, sim_timestep)
+        sim_substeps = config["sim_substeps"]
+        sim_params = self._build_sim_params(sim_substeps, sim_timestep)
+
         compute_device_id = self._get_device_idx()
         if (visualize):
             graphics_device_id = compute_device_id
@@ -583,8 +579,9 @@ class IsaacGymEngine(engine.Engine):
             assert(False), "Unsupported control mode: {}".format(mode)
         return drive_mode
     
-    def _parse_sim_params(self, config, sim_timestep):
+    def _build_sim_params(self, substeps, sim_timestep):
         sim_params = gymapi.SimParams()
+        sim_params.substeps = substeps
         sim_params.dt = sim_timestep
         sim_params.num_client_threads = 0
         
@@ -592,13 +589,21 @@ class IsaacGymEngine(engine.Engine):
         sim_params.gravity.x = 0
         sim_params.gravity.y = 0
         sim_params.gravity.z = -9.81
-
+        
+        sim_params.physx.num_threads = 4
         sim_params.physx.solver_type = 1
         sim_params.physx.num_position_iterations = 4
         sim_params.physx.num_velocity_iterations = 0
-        sim_params.physx.num_threads = 4
+        sim_params.physx.contact_offset = 0.02
+        sim_params.physx.rest_offset = 0.0
+        sim_params.physx.bounce_threshold_velocity = 0.2
+        sim_params.physx.max_depenetration_velocity = 10.0
+        sim_params.physx.default_buffer_size_multiplier = 10.0
         sim_params.physx.num_subscenes = 0
         sim_params.physx.max_gpu_contact_pairs = 8 * 1024 * 1024
+        
+        sim_params.flex.num_inner_iterations = 10
+        sim_params.flex.warm_start = 0.25
 
         if ("gpu" in self._device or "cuda" in self._device):
             sim_params.physx.use_gpu = True
@@ -609,10 +614,6 @@ class IsaacGymEngine(engine.Engine):
         else:
             assert(False), "Unsupported simulation device: {}".format(self._device)
 
-        # if sim options are provided in cfg, parse them and update/override above:
-        if ("sim" in config):
-            gymutil.parse_sim_config(config["sim"], sim_params)
-        
         return sim_params
     
     def _get_device_idx(self):

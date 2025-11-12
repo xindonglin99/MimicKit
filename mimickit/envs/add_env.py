@@ -84,6 +84,7 @@ class ADDEnv(amp_env.AMPEnv):
     def _compute_disc_obs_demo(self, motion_ids, motion_times0):
         root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, key_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
         body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+
         disc_obs = compute_disc_obs(root_pos=root_pos,
                                   root_rot=root_rot, 
                                   root_vel=root_vel,

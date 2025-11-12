@@ -61,6 +61,8 @@ class ASEModel(amp_model.AMPModel):
         return input_dict
 
     def _build_enc(self, config, env):
+        enc_logit_init_scale = 0.1
+
         net_name = config["enc_net"]
         latent_dim = config["latent_dim"]
 
@@ -70,6 +72,8 @@ class ASEModel(amp_model.AMPModel):
 
         layers_out_size = torch_util.calc_layers_out_size(self._enc_layers)
         self._enc_out = torch.nn.Linear(layers_out_size, latent_dim)
+
+        torch.nn.init.uniform_(self._enc_out.weight, -enc_logit_init_scale, enc_logit_init_scale)
         torch.nn.init.zeros_(self._enc_out.bias)
         return
 
