@@ -1,0 +1,6 @@
+--num_envs 4096
+--env_config data/envs/exps/deepmimic_exp1.yaml
+--agent_config data/agents/deepmimic_pi_plus_ppo_agent.yaml
+--log_file output/pi_plus/deepmimic/Nov11/walk_50fps_highdist/log.txt
+--out_model_file output/pi_plus/deepmimic/Nov11/walk_50fps_highdist/model.pt
+--max_samples 300000000

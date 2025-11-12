@@ -3,5 +3,7 @@
 --env_config data/envs/deepmimic_pi_plus_env.yaml
 --agent_config data/agents/deepmimic_pi_plus_ppo_agent.yaml
 
---log_file output/pi_plus/deepmimic/Nov5/log.txt
---out_model_file output/pi_plus/deepmimic/Nov5/model.pt
+--log_file output/pi_plus/deepmimic/Nov9/log.txt
+--out_model_file output/pi_plus/deepmimic/Nov9/model.pt
+
+--max_samples 300000000

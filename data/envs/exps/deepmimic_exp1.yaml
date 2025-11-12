@@ -1,0 +1,125 @@
+engine:
+  control_freq: 30
+  control_mode: pos
+  engine_name: isaac_gym
+  env_spacing: 5
+  plane:
+    dynamic_friction: 1.0
+    restitution: 0.0
+    static_friction: 1.0
+  sim:
+    flex:
+      num_inner_iterations: 10
+      warm_start: 0.25
+    physx:
+      bounce_threshold_velocity: 0.2
+      contact_offset: 0.02
+      default_buffer_size_multiplier: 10.0
+      max_depenetration_velocity: 10.0
+      num_position_iterations: 4
+      num_threads: 4
+      num_velocity_iterations: 0
+      rest_offset: 0.0
+      solver_type: 1
+    substeps: 2
+  sim_freq: 60
+env:
+  camera_mode: track
+  char_file: data/assets/hightorque/pi_plus/pi_22dof.xml
+  contact_bodies:
+  - l_ankle_roll_link
+  - r_ankle_roll_link
+  - l_ankle_pitch_link
+  - r_ankle_pitch_link
+  - l_calf_link
+  - r_calf_link
+  enable_early_termination: true
+  enable_phase_obs: false
+  enable_tar_obs: true
+  episode_length: 10.0
+  global_obs: true
+  init_pose:
+  - 0
+  - 0
+  - 0.351
+  - 0
+  - 0
+  - 0
+  - -0.25
+  - 0
+  - 0
+  - 0.65
+  - -0.4
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - -0.25
+  - 0
+  - 0
+  - 0.65
+  - -0.4
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  - 0
+  joint_err_w:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.7
+  - 0.7
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.6
+  - 0.5
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.7
+  - 0.7
+  - 0.9
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.6
+  - 0.5
+  key_bodies:
+  - l_ankle_roll_link
+  - r_ankle_roll_link
+  - r_wrist_link
+  - l_wrist_link
+  log_tracking_error: false
+  motion_file: data/motions/hightorque/pi_plus/mimickit/walk_50fps_highdist.pkl
+  num_phase_encoding: 4
+  pose_termination: true
+  pose_termination_dist: 0.7
+  rand_reset: false
+  ref_char_offset:
+  - 2.0
+  - 0.0
+  - 0.0
+  reward_key_pos_scale: 10.0
+  reward_key_pos_w: 0.15
+  reward_pose_scale: 0.25
+  reward_pose_w: 0.5
+  reward_root_pose_scale: 5.0
+  reward_root_pose_w: 0.1
+  reward_root_vel_scale: 1.0
+  reward_root_vel_w: 0.05
+  reward_vel_scale: 0.01
+  reward_vel_w: 0.2
+  root_height_obs: true
+  tar_obs_steps:
+  - 1
+  - 2
+  - 3
+  termination_height: 0.25
+  zero_center_action: true
+env_name: deepmimic

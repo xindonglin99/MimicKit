@@ -87,6 +87,9 @@ def convert_gmr_to_mimickit(gmr_file_path, output_file_path, loop_mode, start_fr
 
     # Convert quaternion to exponential map
     root_rot = quat_to_exp_map(torch.tensor(root_rot_quat)).numpy()  
+
+    # TEMP:
+    # root_pos[:, 2] -= 0.01
     
     # Stack all motion data along the last dimension
     # frames shape: (num_frames, 3 + 3 + num_dofs) = (num_frames, 6 + num_dofs)
