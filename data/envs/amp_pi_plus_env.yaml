@@ -1,4 +1,4 @@
-env_name: "deepmimic"
+env_name: "amp"
 
 env:
     char_file: "data/assets/hightorque/pi_plus/pi_22dof.xml"
@@ -7,27 +7,21 @@ env:
     episode_length: 10.0 # seconds
     global_obs: True
     root_height_obs: True
-    pose_termination: True
-    pose_termination_dist: 0.7 # m
+    pose_termination: False
     enable_phase_obs: False
-    enable_tar_obs: True
-    num_phase_encoding: 4
-    tar_obs_steps: [1, 2, 3]
+    enable_tar_obs: False
+    num_disc_obs_steps: 10
     rand_reset: True
     zero_center_action: True
-    log_tracking_error: False
 
     ref_char_offset: [2.0, 0.0, 0.0] # m
-    init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0] # 6+22=28, trivial since RSI is used
-
+    init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0] # 6+22=28
     enable_early_termination: True
     termination_height: 0.2
     key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"] # try without head
     contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link", "l_calf_link", "r_calf_link"] # walk
     
     motion_file: "data/motions/hightorque/pi_plus/mimickit/pi_plus_walk.pkl"
-
-    joint_err_w: [1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5, 0.5, 1.0, 1.0, 1.0, 0.6, 0.5] # for joints, hips 1.0, shoulders 1.0, elbows 0.6, wrists 0.5, knees 0.6, ankles 0.5
     
     reward_pose_w: 0.5
     reward_vel_w: 0.1
