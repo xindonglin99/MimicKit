@@ -5,3 +5,5 @@
 
 --log_file output/log.txt
 --out_model_file output/model.pt
+
+--max_samples 150_000_000
