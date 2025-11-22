@@ -1,7 +1,7 @@
 env_name: "amp"
 
 env:
-    char_file: "data/assets/hightorque/pi_plus/pi_22dof.xml"
+    char_file: "data/assets/hightorque_pi_plus/pi_22dof.xml"
     camera_mode: "track"
 
     episode_length: 10.0 # seconds
@@ -15,13 +15,13 @@ env:
     zero_center_action: True
 
     ref_char_offset: [2.0, 0.0, 0.0] # m
-    init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0] # 6+22=28
+    init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0]
     enable_early_termination: True
     termination_height: 0.2
-    key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"] # try without head
+    key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"]
     contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link", "l_calf_link", "r_calf_link"] # walk
     
-    motion_file: "data/motions/hightorque/pi_plus/mimickit/pi_plus_walk.pkl"
+    motion_file: "data/motions/hightorque_pi_plus/pi_plus_walk.pkl"
     
     reward_pose_w: 0.5
     reward_vel_w: 0.1
