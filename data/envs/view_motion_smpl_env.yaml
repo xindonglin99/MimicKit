@@ -19,7 +19,6 @@ engine:
     control_mode: "none"
     control_freq: 30
     sim_freq: 30
-    sim_substeps: 1 # 30 Hz
     env_spacing: 5
-
-
+    
+    ground_contact_height: 0.3

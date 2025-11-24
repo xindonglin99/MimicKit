@@ -1,4 +1,5 @@
 import envs.deepmimic_env as deepmimic_env
+import engines.engine as engine
 import numpy as np
 
 class StaticObjectsEnv(deepmimic_env.DeepMimicEnv):
@@ -23,10 +24,11 @@ class StaticObjectsEnv(deepmimic_env.DeepMimicEnv):
             rot = np.array(rot)
 
             obj_name = "static_object{:d}".format(i)
-            self._engine.create_actor(env_id=env_id,
-                                      asset_file=asset_file,
-                                      name=obj_name,
-                                      start_pos=pos,
-                                      start_rot=rot,
-                                      fix_base=True)
+            self._engine.create_obj(env_id=env_id,
+                                    obj_type=engine.ObjType.rigid,
+                                    asset_file=asset_file,
+                                    name=obj_name,
+                                    start_pos=pos,
+                                    start_rot=rot,
+                                    fix_root=True)
         return

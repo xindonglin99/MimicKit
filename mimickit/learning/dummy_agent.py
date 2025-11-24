@@ -13,7 +13,7 @@ class DummyAgent(base_agent.BaseAgent):
         return
 
     def _get_exp_buffer_length(self):
-        return 0
+        return 32
     
     def _load_params(self, config):
         self._discount = 0.99

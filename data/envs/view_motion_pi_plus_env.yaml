@@ -20,4 +20,3 @@ engine:
     sim_freq: 30
     control_freq: 30
     env_spacing: 5
-    sim_substeps: 1 # 30 Hz

@@ -6,10 +6,18 @@ class ControlMode(enum.Enum):
     pos = 1
     vel = 2
     torque = 3
-    pd_1d = 4
+    pd_explicit = 4
+
+class ObjType(enum.Enum):
+    rigid = 0
+    articulated = 1
 
 class Engine:
     def __init__(self):
+        return
+    
+    @abc.abstractmethod
+    def get_name(self):
         return
     
     @abc.abstractmethod
@@ -17,16 +25,16 @@ class Engine:
         return
     
     @abc.abstractmethod
-    def create_actor(self, env_id, asset_file, name, is_visual=False, enable_self_collisions=True, 
-                     fix_base=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
+    def create_obj(self, env_id, obj_type, asset_file, name, is_visual=False, enable_self_collisions=True, 
+                     fix_root=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
         return
 
     @abc.abstractmethod
-    def finalize_sim(self):
+    def initialize_sim(self):
         return
     
     @abc.abstractmethod
-    def set_cmd(self, actor_id, cmd):
+    def set_cmd(self, obj_id, cmd):
         return
 
     @abc.abstractmethod
@@ -58,118 +66,134 @@ class Engine:
         return 0
     
     @abc.abstractmethod
-    def get_root_pos(self, actor_id):
+    def get_root_pos(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_root_rot(self, actor_id):
+    def get_root_rot(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_root_vel(self, actor_id):
+    def get_root_vel(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_root_ang_vel(self, actor_id):
+    def get_root_ang_vel(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_dof_pos(self, actor_id):
+    def get_dof_pos(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_dof_vel(self, actor_id):
+    def get_dof_vel(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_dof_forces(self, actor_id):
+    def get_dof_forces(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_body_pos(self, actor_id):
+    def get_body_pos(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_body_rot(self, actor_id):
+    def get_body_rot(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_body_vel(self, actor_id):
+    def get_body_vel(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_body_ang_vel(self, actor_id):
+    def get_body_ang_vel(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_contact_forces(self, actor_id):
+    def get_contact_forces(self, obj_id):
+        return
+    
+    @abc.abstractmethod
+    def get_ground_contact_forces(self, obj_id):
+        return
+
+    @abc.abstractmethod
+    def get_ground_contact_forces(self, obj_id):
         return
 
     
     @abc.abstractmethod
-    def set_root_pos(self, env_id, actor_id, root_pos):
+    def set_root_pos(self, env_id, obj_id, root_pos):
         return
     
     @abc.abstractmethod
-    def set_root_rot(self, env_id, actor_id, root_rot):
+    def set_root_rot(self, env_id, obj_id, root_rot):
         return
     
     @abc.abstractmethod
-    def set_root_vel(self, env_id, actor_id, root_vel):
+    def set_root_vel(self, env_id, obj_id, root_vel):
         return
     
     @abc.abstractmethod
-    def set_root_ang_vel(self, env_id, actor_id, root_ang_vel):
+    def set_root_ang_vel(self, env_id, obj_id, root_ang_vel):
         return
     
     @abc.abstractmethod
-    def set_dof_pos(self, env_id, actor_id, dof_pos):
+    def set_dof_pos(self, env_id, obj_id, dof_pos):
         return
     
     @abc.abstractmethod
-    def set_dof_vel(self, env_id, actor_id, dof_vel):
+    def set_dof_vel(self, env_id, obj_id, dof_vel):
         return
     
     @abc.abstractmethod
-    def set_body_vel(self, env_id, actor_id, body_vel):
+    def set_body_vel(self, env_id, obj_id, body_vel):
         return
     
     @abc.abstractmethod
-    def set_body_ang_vel(self, env_id, actor_id, body_ang_vel):
+    def set_body_ang_vel(self, env_id, obj_id, body_ang_vel):
         return
     
     @abc.abstractmethod
-    def set_body_forces(self, env_id, actor_id, body_id, forces):
+    def set_body_forces(self, env_id, obj_id, body_id, forces):
         return
     
     
     @abc.abstractmethod
-    def get_actor_dof_count(self, env_id, actor_id):
+    def get_obj_type(self, obj_id):
         return
     
     @abc.abstractmethod
-    def get_actor_body_names(self, env_id, actor_id):
+    def get_obj_num_dofs(self, obj_id):
+        return
+    
+    @abc.abstractmethod
+    def get_obj_num_bodies(self, obj_id):
+        return
+    
+    @abc.abstractmethod
+    def get_obj_body_names(self, obj_id):
         return
 
     @abc.abstractmethod
-    def find_actor_body_id(self, env_id, actor_id, body_name):
+    def find_obj_body_id(self, obj_id, body_name):
         return 
     
     @abc.abstractmethod
-    def get_actor_torque_lim(self, actor_id):
+    def get_obj_torque_lim(self, env_id, obj_id):
         return
     
     @abc.abstractmethod
-    def get_actor_dof_limits(self, env_id, actor_id):
+    def get_obj_dof_limits(self, env_id, obj_id):
         return
     
     @abc.abstractmethod
-    def calc_actor_mass(self, env_id, actor_id):
+    def calc_obj_mass(self, env_id, obj_id):
         return
     
     @abc.abstractmethod
     def get_control_mode(self):
         return
     
-    def draw_lines(self, env_id, verts, cols):
+    def draw_lines(self, env_id, start_verts, end_verts, cols, line_widths):
         return

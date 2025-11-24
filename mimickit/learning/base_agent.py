@@ -152,7 +152,7 @@ class BaseAgent(torch.nn.Module):
     def _build_normalizers(self):
         obs_space = self._env.get_obs_space()
         obs_dtype = torch_util.numpy_dtype_to_torch(obs_space.dtype)
-        self._obs_norm = normalizer.Normalizer(obs_space.shape, device=self._device, dtype=obs_dtype)
+        self._obs_norm = normalizer.Normalizer(obs_space.shape, clip=10.0, device=self._device, dtype=obs_dtype)
         self._a_norm = self._build_action_normalizer()
         return
     
@@ -194,30 +194,6 @@ class BaseAgent(torch.nn.Module):
         batch_size = self.get_num_envs()
         self._exp_buffer = experience_buffer.ExperienceBuffer(buffer_length=buffer_length, batch_size=batch_size,
                                                               device=self._device)
-        
-        obs_space = self._env.get_obs_space()
-        obs_dtype = torch_util.numpy_dtype_to_torch(obs_space.dtype)
-        obs_buffer = torch.zeros([buffer_length, batch_size] + list(obs_space.shape), device=self._device, dtype=obs_dtype)
-        self._exp_buffer.add_buffer("obs", obs_buffer)
-        
-        next_obs_buffer = torch.zeros_like(obs_buffer)
-        self._exp_buffer.add_buffer("next_obs", next_obs_buffer)
-
-        a_space = self._env.get_action_space()
-        a_dtype = torch_util.numpy_dtype_to_torch(a_space.dtype)
-        a_shape = list(a_space.shape)
-        if (a_shape == []):
-            a_shape = [1]
-
-        action_buffer = torch.zeros([buffer_length, batch_size] + a_shape, device=self._device, dtype=a_dtype)
-        self._exp_buffer.add_buffer("action", action_buffer)
-        
-        reward_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.float)
-        self._exp_buffer.add_buffer("reward", reward_buffer)
-        
-        done_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.int)
-        self._exp_buffer.add_buffer("done", done_buffer)
-
         return
 
     def _build_return_tracker(self):

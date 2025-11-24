@@ -2,6 +2,7 @@ import torch
 import numpy as np
 
 import envs.amp_env as amp_env
+import engines.engine as engine
 import util.torch_util as torch_util
 
 
@@ -53,20 +54,22 @@ class TaskSteeringEnv(amp_env.AMPEnv):
     def _build_markers(self, env_id):
         asset_file = "data/assets/objects/steering_marker.urdf"
 
-        tar_marker_id = self._engine.create_actor(env_id=env_id, 
+        tar_marker_id = self._engine.create_obj(env_id=env_id, 
+                                             obj_type=engine.ObjType.rigid,
                                              asset_file=asset_file, 
                                              name="tar_marker",
                                              is_visual=True,
                                              enable_self_collisions=False,
-                                             fix_base=True,
+                                             fix_root=True,
                                              color=[0.8, 0.0, 0.0])
 
-        face_marker_id = self._engine.create_actor(env_id=env_id, 
+        face_marker_id = self._engine.create_obj(env_id=env_id, 
+                                             obj_type=engine.ObjType.rigid,
                                              asset_file=asset_file, 
                                              name="face_marker",
                                              is_visual=True,
                                              enable_self_collisions=False,
-                                             fix_base=True,
+                                             fix_root=True,
                                              color=[0.0, 0.8, 0.0])
 
         return tar_marker_id, face_marker_id

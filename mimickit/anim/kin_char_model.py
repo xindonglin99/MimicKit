@@ -525,9 +525,9 @@ class KinCharModel():
 			<freejoint name="{:s}"/>'''
 
         joint_template = '''
-            <joint name="{:s}_x" type="hinge" axis="1 0 0" range="-180 180" stiffness="100" damping="10" armature=".01"/>
-            <joint name="{:s}_y" type="hinge" axis="0 1 0" range="-180 180" stiffness="100" damping="10" armature=".01"/>
-            <joint name="{:s}_z" type="hinge" axis="0 0 1" range="-180 180" stiffness="100" damping="10" armature=".01"/>'''
+            <joint name="{:s}_x" type="hinge" axis="1 0 0" range="-180 180" actuatorfrcrange="-100 100" stiffness="100" damping="10" armature=".01"/>
+            <joint name="{:s}_y" type="hinge" axis="0 1 0" range="-180 180" actuatorfrcrange="-100 100" stiffness="100" damping="10" armature=".01"/>
+            <joint name="{:s}_z" type="hinge" axis="0 0 1" range="-180 180" actuatorfrcrange="-100 100" stiffness="100" damping="10" armature=".01"/>'''
             
         body_name = self._body_names[body_id]
         

@@ -21,7 +21,6 @@ env:
     init_pose: [0, 0, 0.351, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0, -0.25, 0, 0, 0.65, -0.4, 0, 0, 0, 0, 0, 0]
 
     enable_early_termination: True
-    termination_height: 0.2
     key_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "r_wrist_link", "l_wrist_link"] # try without head
     contact_bodies: ["l_ankle_roll_link", "r_ankle_roll_link", "l_ankle_pitch_link", "r_ankle_pitch_link", "l_calf_link", "r_calf_link"] # walk
     
@@ -46,9 +45,8 @@ engine:
     engine_name: "isaac_gym"
     
     control_mode: "pos"
-    sim_freq: 60
     control_freq: 30
+    sim_freq: 120
     env_spacing: 5
-    sim_substeps: 2 # 120 Hz
-
-
+    
+    ground_contact_height: 0.2

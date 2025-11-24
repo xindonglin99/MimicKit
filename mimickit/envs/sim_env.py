@@ -1,4 +1,4 @@
-import isaacgym.gymapi as gymapi
+import engines.engine_builder as engine_builder
 
 import abc
 import envs.base_env as base_env
@@ -22,7 +22,7 @@ class SimEnv(base_env.BaseEnv):
         engine_config = config["engine"]
         self._engine = self._build_engine(engine_config, num_envs, device, visualize)
         self._build_envs(config, num_envs)
-        self._engine.finalize_sim()
+        self._engine.initialize_sim()
         
         self._action_space = self._build_action_space()
         self._build_sim_tensors(config)
@@ -53,8 +53,8 @@ class SimEnv(base_env.BaseEnv):
             reset_env_ids = env_ids
 
         self._reset_envs(reset_env_ids)
-        
         self._engine.update_sim_state()
+
         self._update_observations(env_ids)
         self._update_info(env_ids)
 
@@ -144,15 +144,8 @@ class SimEnv(base_env.BaseEnv):
         return
 
     def _build_engine(self, engine_config, num_envs, device, visualize):
-        eng_name = engine_config["engine_name"]
-
-        if (eng_name == "isaac_gym"):
-            import engines.isaac_gym_engine as isaac_gym_engine
-            eng = isaac_gym_engine.IsaacGymEngine(engine_config, num_envs, device, visualize)
-        else:
-            assert False, print("Unsupported engine: {:s}".format(eng_name))
-
-        return eng
+        engine = engine_builder.build_engine(engine_config, num_envs, device, visualize)
+        return engine
     
     @abc.abstractmethod
     def _build_envs(self, config, num_envs):

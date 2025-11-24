@@ -2,6 +2,7 @@ import envs.base_env as base_env
 import envs.char_env as char_env
 import anim.motion as motion
 import anim.motion_lib as motion_lib
+import engines.engine as engine
 
 import numpy as np
 import torch
@@ -24,12 +25,13 @@ class ViewMotionEnv(char_env.CharEnv):
     
     def _build_character(self, env_id, config, color=None):
         char_file = config["env"]["char_file"]
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset_file=char_file, 
-                                             name="character",
-                                             enable_self_collisions=False,
-                                             disable_motors=True,
-                                             color=color)
+        char_id = self._engine.create_obj(env_id=env_id, 
+                                          obj_type=engine.ObjType.articulated,
+                                          asset_file=char_file, 
+                                          name="character",
+                                          enable_self_collisions=False,
+                                          disable_motors=True,
+                                          color=color)
         return char_id
 
     def _load_motions(self, motion_file):
@@ -71,8 +73,8 @@ class ViewMotionEnv(char_env.CharEnv):
         return
 
     def _render(self):
-        super()._render()
         self._render_key_points()
+        super()._render()
         return
     
     def _build_sim_tensors(self, config):
@@ -104,24 +106,34 @@ class ViewMotionEnv(char_env.CharEnv):
     def _render_key_points(self):
         if (self._has_key_bodies()):
             num_key_bodies = self._key_body_ids.shape[0]
-            cols = np.array(3 * num_key_bodies * [[1.0, 0.0, 0.0]], dtype=np.float32)
+            cols = np.array(3 * num_key_bodies * [[1.0, 0.0, 0.0, 1.0]], dtype=np.float32)
+            line_widths = np.array(3 * num_key_bodies * [2.0], dtype=np.float32)
             
             num_envs = self.get_num_envs()
             for i in range(num_envs):
                 key_body_pos = self._ref_body_pos[i][self._key_body_ids]
                 key_body_pos = key_body_pos.cpu().numpy()
 
-                verts = 0.2 * np.array([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
-                                        [0.0, -1.0, 0.0], [0.0, 1.0, 0.0],
-                                        [0.0, 0.0, -1.0], [0.0, 0.0, 1.0]],
+                start_verts = 0.2 * np.array([[-1.0, 0.0, 0.0],
+                                        [0.0, -1.0, 0.0],
+                                        [0.0, 0.0, -1.0]],
+                                       dtype=np.float32)
+                
+                end_verts = 0.2 * np.array([[1.0, 0.0, 0.0],
+                                        [0.0, 1.0, 0.0],
+                                        [0.0, 0.0, 1.0]],
                                        dtype=np.float32)
 
                 key_body_pos = np.expand_dims(key_body_pos, -2)
-                verts = np.expand_dims(verts, 0)
-                verts = key_body_pos + verts
-                verts = np.reshape(verts, (-1, 6))
+                start_verts = np.expand_dims(start_verts, 0)
+                start_verts = key_body_pos + start_verts
+                end_verts = np.expand_dims(end_verts, 0)
+                end_verts = key_body_pos + end_verts
 
-                self._engine.draw_lines(i, verts, cols)
+                start_verts = start_verts.reshape([-1, 3])
+                end_verts = end_verts.reshape([-1, 3])
+                
+                self._engine.draw_lines(i, start_verts, end_verts, cols, line_widths)
 
         return
     

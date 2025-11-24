@@ -5,6 +5,7 @@ import anim.motion as motion
 import anim.motion_lib as motion_lib
 import envs.base_env as base_env
 import envs.char_env as char_env
+import engines.engine as engine
 import util.stats_tracker as stats_tracker
 import util.torch_util as torch_util
 
@@ -12,7 +13,6 @@ class DeepMimicEnv(char_env.CharEnv):
     def __init__(self, config, num_envs, device, visualize):
         env_config = config["env"]
         self._enable_early_termination = env_config["enable_early_termination"]
-        self._termination_height = env_config["termination_height"]
         self._num_phase_encoding = env_config.get("num_phase_encoding", 0)
 
         self._pose_termination = env_config.get("pose_termination", False)
@@ -302,13 +302,14 @@ class DeepMimicEnv(char_env.CharEnv):
     
     def _build_ref_character(self, env_id, config, color):
         char_file = config["env"]["char_file"]
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset_file=char_file, 
-                                             name="ref_character",
-                                             is_visual=True,
-                                             enable_self_collisions=False,
-                                             disable_motors=True,
-                                             color=color)
+        char_id = self._engine.create_obj(env_id=env_id, 
+                                          obj_type=engine.ObjType.articulated,
+                                          asset_file=char_file, 
+                                          name="ref_character",
+                                          is_visual=True,
+                                          enable_self_collisions=False,
+                                          disable_motors=True,
+                                          color=color)
         return char_id
 
     def _compute_obs(self, env_ids=None):
@@ -322,6 +323,7 @@ class DeepMimicEnv(char_env.CharEnv):
         root_ang_vel = self._engine.get_root_ang_vel(char_id)
         dof_pos = self._engine.get_dof_pos(char_id)
         dof_vel = self._engine.get_dof_vel(char_id)
+        body_pos = self._engine.get_body_pos(char_id)
 
         if (env_ids is not None):
             root_pos = root_pos[env_ids]
@@ -330,6 +332,7 @@ class DeepMimicEnv(char_env.CharEnv):
             root_ang_vel = root_ang_vel[env_ids]
             dof_pos = dof_pos[env_ids]
             dof_vel = dof_vel[env_ids]
+            body_pos = body_pos[env_ids]
 
             motion_ids = motion_ids[env_ids]
             
@@ -341,7 +344,6 @@ class DeepMimicEnv(char_env.CharEnv):
             motion_phase = torch.zeros([0], device=self._device)
 
         if (self._has_key_bodies()):
-            body_pos, _ = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
             key_pos = body_pos[..., self._key_body_ids, :]
         else:
             key_pos = torch.zeros([0], device=self._device)
@@ -454,7 +456,7 @@ class DeepMimicEnv(char_env.CharEnv):
         char_id = self._get_char_id()
         root_rot = self._engine.get_root_rot(char_id)
         body_pos = self._engine.get_body_pos(char_id)
-        contact_forces = self._engine.get_contact_forces(char_id)
+        ground_contact_forces = self._engine.get_ground_contact_forces(char_id)
 
         self._done_buf[:] = compute_done(done_buf=self._done_buf,
                                          time=self._time_buf, 
@@ -463,9 +465,8 @@ class DeepMimicEnv(char_env.CharEnv):
                                          body_pos=body_pos,
                                          tar_root_rot=self._ref_root_rot,
                                          tar_body_pos=self._ref_body_pos,
-                                         contact_force=contact_forces,
+                                         ground_contact_force=ground_contact_forces,
                                          contact_body_ids=self._contact_body_ids,
-                                         termination_heights=self._termination_height,
                                          pose_termination=self._pose_termination,
                                          pose_termination_dist=self._pose_termination_dist,
                                          global_obs=self._global_obs,
@@ -495,6 +496,7 @@ class DeepMimicEnv(char_env.CharEnv):
             dof_pos = self._engine.get_dof_pos(char_id)
             dof_vel = self._engine.get_dof_vel(char_id)
             body_pos = self._engine.get_body_pos(char_id)
+            body_rot = self._engine.get_body_rot(char_id)
 
             joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
 
@@ -512,6 +514,8 @@ class DeepMimicEnv(char_env.CharEnv):
                 root_vel = root_vel[env_ids]
                 root_ang_vel = root_ang_vel[env_ids]
                 dof_vel = dof_vel[env_ids]
+                body_pos = body_pos[env_ids]
+                body_rot = body_rot[env_ids]
 
                 ref_root_pos = ref_root_pos[env_ids]
                 ref_root_rot = ref_root_rot[env_ids]
@@ -519,8 +523,7 @@ class DeepMimicEnv(char_env.CharEnv):
                 ref_root_vel = ref_root_vel[env_ids]
                 ref_root_ang_vel = ref_root_ang_vel[env_ids]
                 ref_dof_vel = ref_dof_vel[env_ids]
-
-            body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+            
             ref_body_pos, ref_body_rot = self._kin_char_model.forward_kinematics(ref_root_pos, ref_root_rot, ref_joint_rot)
 
             tracking_error = compute_tracking_error(root_pos=root_pos,
@@ -715,12 +718,12 @@ def compute_deepmimic_obs(root_pos, root_rot, root_vel, root_ang_vel, joint_rot,
 
 @torch.jit.script
 def compute_done(done_buf, time, ep_len, root_rot, body_pos, tar_root_rot, tar_body_pos, 
-                 contact_force, contact_body_ids, termination_heights,
+                 ground_contact_force, contact_body_ids,
                  pose_termination, pose_termination_dist, 
                  global_obs, enable_early_termination,
                  motion_times, motion_len, motion_len_term,
                  track_root):
-    # type: (Tensor, Tensor, float, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float, bool, float, bool, bool, Tensor, Tensor, Tensor, bool) -> Tensor
+    # type: (Tensor, Tensor, float, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool, float, bool, bool, Tensor, Tensor, Tensor, bool) -> Tensor
     done = torch.full_like(done_buf, base_env.DoneFlags.NULL.value)
     
     timeout = time >= ep_len
@@ -734,15 +737,10 @@ def compute_done(done_buf, time, ep_len, root_rot, body_pos, tar_root_rot, tar_b
         failed = torch.zeros(done.shape, device=done.device, dtype=torch.bool)
 
         if (contact_body_ids.shape[0] > 0):
-            masked_contact_buf = contact_force.detach().clone()
+            masked_contact_buf = ground_contact_force.detach().clone()
             masked_contact_buf[:, contact_body_ids, :] = 0
             fall_contact = torch.any(torch.abs(masked_contact_buf) > 0.1, dim=-1)
 
-            body_height = body_pos[..., 2]
-            fall_height = body_height < termination_heights
-            fall_height[:, contact_body_ids] = False
-
-            fall_contact = torch.logical_and(fall_contact, fall_height)
             has_fallen = torch.any(fall_contact, dim=-1)
             failed = torch.logical_or(failed, has_fallen)
 
