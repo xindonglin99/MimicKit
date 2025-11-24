@@ -17,7 +17,6 @@ env:
     init_pose: [0, 0, 0.703, -0.033, 0.084, -0.857, -0.033, 0.719, -0.048, -0.271, -0.487, 0.792, 0.836, -0.401, 0.6781, 1.092, -0.208, 0.195, 0.024, -0.497, -0.201, -0.332, -1.726, -0.436, -0.573, -0.192, 1.085, 0.460, -0.460, 0.028, 0.570, -0.906, 0.413, 1.056, -0.292, -0.110,-0.037]
     
     enable_early_termination: True
-    termination_height: 0.3
     key_bodies: ["head", "right_hand", "left_hand", "right_foot", "left_foot", "sword"]
     contact_bodies: ["right_shin", "right_foot", "left_shin", "left_foot"]
     
@@ -53,8 +52,7 @@ engine:
     
     control_mode: "pos"
     control_freq: 30
-    sim_freq: 60
-    sim_substeps: 2 # 120 Hz
+    sim_freq: 120
     env_spacing: 5
 
-
+    ground_contact_height: 0.3

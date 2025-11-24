@@ -33,6 +33,9 @@ action_entropy_weight: 0.0
 action_reg_weight: 0.0
 critic_loss_weight: 1.0
 
+disc_buffer_size: 200000
+disc_replay_samples: 1000
+disc_batch_size: 2048
 disc_loss_weight: 5.0
 disc_logit_reg: 0.01
 disc_grad_penalty: 5

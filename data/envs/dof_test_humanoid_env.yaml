@@ -8,13 +8,12 @@ env:
     global_obs: False
     root_height_obs: True
     
-    init_pose: [0, 0, 1.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    init_pose: [0, 0, 1.2]
 
 engine:
     engine_name: "isaac_gym"
     
     control_mode: "pos"
     control_freq: 30
-    sim_freq: 60
-    sim_substeps: 2 # 120 Hz
+    sim_freq: 120
     env_spacing: 5

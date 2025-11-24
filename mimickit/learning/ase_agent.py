@@ -46,17 +46,6 @@ class ASEAgent(amp_agent.AMPAgent):
         self._latent_reset_time = torch.zeros([num_envs], dtype=torch.float32, device=self._device)
         return
     
-    def _build_exp_buffer(self, config):
-        super()._build_exp_buffer(config)
-        
-        buffer_length = self._get_exp_buffer_length()
-        batch_size = self.get_num_envs()
-        latent_dim = self._get_latent_dim()
-
-        latent_buffer = torch.zeros([buffer_length, batch_size, latent_dim], device=self._device, dtype=torch.float32)
-        self._exp_buffer.add_buffer("latents", latent_buffer)
-        return
-    
     def _get_latent_dim(self):
         return self._model.get_latent_dim()
 
@@ -220,7 +209,6 @@ class ASEAgent(amp_agent.AMPAgent):
             "enc_reward_mean": enc_reward_mean,
             "enc_reward_std": enc_reward_std
         }
-
         return info
 
     def _calc_enc_rewards(self, tar_latents, norm_enc_obs):
@@ -321,11 +309,16 @@ class ASEAgent(amp_agent.AMPAgent):
         return info
 
     def _compute_enc_loss(self, batch):
-        norm_disc_obs = batch["norm_disc_obs"]
+        disc_obs = batch["disc_obs"]
         tar_latents = batch["latents"]
+        disc_obs = disc_obs[:self._disc_batch_size]
+        tar_latents = tar_latents[:self._disc_batch_size]
+
+        norm_disc_obs = self._disc_obs_norm.normalize(disc_obs)
         enc_pred = self._model.eval_enc(norm_disc_obs)
         enc_err = self._calc_enc_error(tar_latents=tar_latents, enc_pred=enc_pred)
         enc_loss = torch.mean(enc_err)
+
         return enc_loss
 
     def _calc_enc_error(self, tar_latents, enc_pred):

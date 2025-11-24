@@ -11,23 +11,21 @@ class ExperienceBuffer():
 
         self._buffers = dict()
         self._flat_buffers = dict()
-        self._sample_buf = torch.randperm(self._buffer_length * self._batch_size, device=self._device,
-                                          dtype=torch.long)
+        self._sample_buf = torch.randperm(self.get_capacity(), device=self._device, dtype=torch.long)
         self._sample_buf_head = 0
         self._reset_sample_buf()
 
         return
 
-    def add_buffer(self, name, buffer):
-        assert(len(buffer.shape) >= 2)
-        assert(buffer.shape[0] == self._buffer_length)
-        assert(buffer.shape[1] == self._batch_size)
+    def add_buffer(self, name, data_shape, dtype):
         assert(name not in self._buffers)
 
+        buffer_shape = [self._buffer_length, self._batch_size] + list(data_shape)
+        buffer = torch.zeros(buffer_shape, dtype=dtype, device=self._device)
         self._buffers[name] = buffer
-        flat_shape = [buffer.shape[0] * buffer.shape[1]] + list(buffer.shape[2:])
-        self._flat_buffers[name] = buffer.view(flat_shape)
 
+        flat_shape = [buffer_shape[0] * buffer_shape[1]] + list(data_shape)
+        self._flat_buffers[name] = buffer.view(flat_shape)
         return
 
     def reset(self):
@@ -48,12 +46,23 @@ class ExperienceBuffer():
     def get_total_samples(self):
         return self._total_samples
 
+    def get_capacity(self):
+        return self._buffer_length * self._batch_size
+
     def get_sample_count(self):
-        sample_count = min(self._total_samples, self._buffer_length * self._batch_size)
+        sample_count = min(self._total_samples, self.get_capacity())
         return sample_count
+
+    def is_full(self):
+        return self._total_samples >= self.get_capacity()
 
     def record(self, name, data):
         assert(data.shape[0] == self._batch_size)
+
+        sample_count = self.get_sample_count()
+        if (sample_count == 0 and name not in self._buffers):
+            self.add_buffer(name, data.shape[1:], data.dtype)
+
         data_buf = self._buffers[name]
         data_buf[self._buffer_head] = data
         return
@@ -65,15 +74,23 @@ class ExperienceBuffer():
         return self._flat_buffers[name]
     
     def set_data(self, name, data):
+        assert(data.shape[0] == self._buffer_length)
+        assert(data.shape[1] == self._batch_size)
+        
+        if (name not in self._buffers):
+            self.add_buffer(name, data.shape[2:], data.dtype)
+        
         data_buf = self.get_data(name)
-        assert(data_buf.shape[0] == data.shape[0])
-        assert(data_buf.shape[1] == data.shape[1])
         data_buf[:] = data
         return
     
     def set_data_flat(self, name, data):
+        assert(data.shape[0] == self._buffer_length * self._batch_size)
+        
+        if (name not in self._buffers):
+            self.add_buffer(name, data.shape[1:], data.dtype)
+
         data_buf = self.get_data_flat(name)
-        assert(data_buf.shape[0] == data.shape[0])
         data_buf[:] = data
         return
 
@@ -86,9 +103,36 @@ class ExperienceBuffer():
             output[key] = batch_data
 
         return output
+    
+    def push(self, data_dict):
+        if (len(self._buffers) == 0):
+            for key, data in data_dict.items():
+                self.add_buffer(name=key, data_shape=data.shape[2:], dtype=data.dtype)
+
+        n = next(iter(data_dict.values())).shape[0]
+        assert(n <= self._buffer_length)
+
+        for key, curr_buf in self._buffers.items():
+            curr_data = data_dict[key]
+            curr_n = curr_data.shape[0]
+            curr_batch_size = curr_data.shape[1]
+            assert(n == curr_n)
+            assert(curr_batch_size == self._batch_size)
+
+            store_n = min(curr_n, self._buffer_length - self._buffer_head)
+            curr_buf[self._buffer_head:(self._buffer_head + store_n)] = curr_data[:store_n]    
+        
+            remainder = n - store_n
+            if (remainder > 0):
+                curr_buf[0:remainder] = curr_data[store_n:]  
+
+        self._buffer_head = (self._buffer_head + n) % self._buffer_length
+        self._total_samples += n
+        return
+
 
     def _reset_sample_buf(self):
-        self._sample_buf[:] = torch.randperm(self._buffer_length * self._batch_size, device=self._device,
+        self._sample_buf[:] = torch.randperm(self.get_capacity(), device=self._device,
                                              dtype=torch.long)
         self._sample_buf_head = 0
         return

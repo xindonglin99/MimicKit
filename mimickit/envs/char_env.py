@@ -6,6 +6,7 @@ import torch
 
 import anim.kin_char_model as kin_char_model
 import anim.motion_lib as motion_lib
+import engines.engine as engine
 import envs.sim_env as sim_env
 import envs.base_env as base_env
 from util.logger import Logger
@@ -30,19 +31,26 @@ class CharEnv(sim_env.SimEnv):
                          visualize=visualize)
         
         char_id = self._get_char_id()
-        self._print_actor_prop(0, char_id)
+        self._print_char_prop(0, char_id)
         self._validate_envs()
 
         return
 
     def _parse_init_pose(self, init_pose, device):
-        if (init_pose is not None):
-            init_pose = torch.tensor(init_pose, device=device)
-        else:
-            dof_size = self._kin_char_model.get_dof_size()
+        dof_size = self._kin_char_model.get_dof_size()
+
+        if (init_pose is None):
             init_pose = torch.zeros(6 + dof_size, dtype=torch.float32, device=device)
+        else:
+            init_pose = torch.tensor(init_pose, device=device)
+
+            if (init_pose.shape[-1] == 3):
+                pad_pose = torch.zeros(3 + dof_size, dtype=torch.float32, device=device)
+                init_pose = torch.cat([init_pose, pad_pose], dim=-1)
             
         init_root_pos, init_root_rot, init_dof_pos = motion_lib.extract_pose_data(init_pose)
+        assert(init_dof_pos.shape[-1] == dof_size)
+
         self._init_root_pos = init_root_pos
         self._init_root_rot = torch_util.exp_map_to_quat(init_root_rot)
         self._init_dof_pos = init_dof_pos
@@ -81,10 +89,11 @@ class CharEnv(sim_env.SimEnv):
     
     def _build_character(self, env_id, config, color=None):
         char_file = config["env"]["char_file"]
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset_file=char_file, 
-                                             name="character",
-                                             color=color)
+        char_id = self._engine.create_obj(env_id=env_id, 
+                                          obj_type=engine.ObjType.articulated,
+                                          asset_file=char_file, 
+                                          name="character",
+                                          color=color)
         return char_id
     
     def _build_kin_char_model(self, char_file):
@@ -122,24 +131,24 @@ class CharEnv(sim_env.SimEnv):
 
         elif (control_mode == engine.ControlMode.torque):
             char_id = self._get_char_id()
-            torque_lim = self._engine.get_actor_torque_lim(0, char_id)
+            torque_lim = self._engine.get_obj_torque_lim(0, char_id)
             low, high = self._build_action_bounds_torque(torque_lim)
 
         elif (control_mode == engine.ControlMode.pos
-              or control_mode == engine.ControlMode.pd_1d):
+              or control_mode == engine.ControlMode.pd_explicit):
             char_id = self._get_char_id()
-            dof_low, dof_high = self._engine.get_actor_dof_limits(0, char_id)
+            dof_low, dof_high = self._engine.get_obj_dof_limits(0, char_id)
             low, high = self._build_action_bounds_pos(dof_low, dof_high)
 
         else:
             assert(False), "Unsupported control mode: {}".format(control_mode)
         
-        # check to make sure that pd_1d is only used for 1D joints
-        if (control_mode == engine.ControlMode.pd_1d):
+        # check to make sure that pd_explicit is only used for 1D joints
+        if (control_mode == engine.ControlMode.pd_explicit):
             num_joints = self._kin_char_model.get_num_joints()
             for j in range(1, num_joints):
                 j_dim = self._kin_char_model.get_joint_dof_dim(j)
-                assert(j_dim <= 1), "pd_1d only supports 1D joints"
+                assert(j_dim <= 1), "pd_explicit only supports 1D joints"
 
         action_space = spaces.Box(low=low, high=high)
         return action_space
@@ -212,17 +221,17 @@ class CharEnv(sim_env.SimEnv):
         high = np.array(torque_lim, dtype=np.float32)
         return low, high
     
-    def _print_actor_prop(self, env_id, actor_id):
-        num_dofs = self._engine.get_actor_dof_count(env_id, actor_id)
-        total_mass = self._engine.calc_actor_mass(env_id, actor_id)
-        char_info = "Char {:d} properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(actor_id, num_dofs, total_mass)
+    def _print_char_prop(self, env_id, obj_id):
+        num_dofs = self._engine.get_obj_num_dofs(obj_id)
+        total_mass = self._engine.calc_obj_mass(env_id, obj_id)
+        char_info = "Char {:d} properties\n\tDoFs: {:d}\n\tMass: {:.3f} kg\n".format(obj_id, num_dofs, total_mass)
         Logger.print(char_info)
         return
     
     def _validate_envs(self):
         # checks to make sure the kinematic model is consistent with the simulation model
         char_id = self._get_char_id()
-        sim_body_names = self._engine.get_actor_body_names(0, char_id)
+        sim_body_names = self._engine.get_obj_body_names(char_id)
         kin_body_names = self._kin_char_model.get_body_names()
 
         for sim_name, kin_name in zip(sim_body_names, kin_body_names):
@@ -251,6 +260,7 @@ class CharEnv(sim_env.SimEnv):
         root_ang_vel = self._engine.get_root_ang_vel(char_id)
         dof_pos = self._engine.get_dof_pos(char_id)
         dof_vel = self._engine.get_dof_vel(char_id)
+        body_pos = self._engine.get_body_pos(char_id)
 
         if (env_ids is not None):
             root_pos = root_pos[env_ids]
@@ -259,11 +269,11 @@ class CharEnv(sim_env.SimEnv):
             root_ang_vel = root_ang_vel[env_ids]
             dof_pos = dof_pos[env_ids]
             dof_vel = dof_vel[env_ids]
+            body_pos = body_pos[env_ids]
 
         joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
 
         if (self._has_key_bodies()):
-            body_pos, _ = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
             key_pos = body_pos[..., self._key_body_ids, :]
         else:
             key_pos = torch.zeros([0], device=self._device)
@@ -277,6 +287,7 @@ class CharEnv(sim_env.SimEnv):
                                key_pos=key_pos,
                                global_obs=self._global_obs,
                                root_height_obs=self._root_height_obs)
+
         return obs
     
     def _reset_envs(self, env_ids):
@@ -284,6 +295,7 @@ class CharEnv(sim_env.SimEnv):
 
         if (len(env_ids) > 0):
             self._reset_char(env_ids)
+            self._reset_char_rigid_body_state(env_ids)
         return
 
     def _reset_char(self, env_ids):
@@ -301,6 +313,19 @@ class CharEnv(sim_env.SimEnv):
         self._engine.set_body_ang_vel(env_ids, char_id, 0.0)
         return
 
+    def _reset_char_rigid_body_state(self, env_ids):
+        char_id = self._get_char_id()
+        root_pos = self._engine.get_root_pos(char_id)[env_ids]
+        root_rot = self._engine.get_root_rot(char_id)[env_ids]
+        dof_pos = self._engine.get_dof_pos(char_id)[env_ids]
+
+        joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
+        body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+
+        self._engine.set_body_pos(env_ids, char_id, body_pos)
+        self._engine.set_body_rot(env_ids, char_id, body_rot)
+        return
+
     def _apply_action(self, actions):
         char_id = self._get_char_id()
         clip_action = torch.minimum(torch.maximum(actions, self._action_bound_low), self._action_bound_high)
@@ -312,7 +337,7 @@ class CharEnv(sim_env.SimEnv):
         body_ids = []
 
         for body_name in body_names:
-            body_id = self._engine.find_actor_body_id(0, char_id, body_name)
+            body_id = self._engine.find_obj_body_id(char_id, body_name)
             assert(body_id != -1)
             body_ids.append(body_id)
 
@@ -359,7 +384,32 @@ class CharEnv(sim_env.SimEnv):
         return
 
     def _get_char_color(self):
-        return np.array([0.5, 0.65, 0.95])
+        engine_name = self._engine.get_name()
+        if (engine_name == "isaac_lab"):
+            col = np.array([0.25, 0.35, 0.95])
+        else:
+            col = np.array([0.5, 0.65, 0.95])
+        return col
+
+    def _test_forward_kinematics(self):
+        char_id = self._get_char_id()
+        root_pos = self._engine.get_root_pos(char_id)
+        root_rot = self._engine.get_root_rot(char_id)
+        dof_pos = self._engine.get_dof_pos(char_id)
+        joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
+
+        body_pos = self._engine.get_body_pos(char_id)
+        body_rot = self._engine.get_body_rot(char_id)
+
+        fk_body_pos, fk_body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+        pos_err = body_pos - fk_body_pos
+        rot_err = torch_util.quat_diff_angle(body_rot, fk_body_rot)
+
+        pos_err = torch.max(torch.abs(pos_err))
+        rot_err = torch.max(torch.abs(rot_err))
+
+        assert(pos_err.item() < 1e-5 and rot_err.item() < 1e-5)
+        return
 
 
 

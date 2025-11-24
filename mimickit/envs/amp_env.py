@@ -33,7 +33,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         return disc_obs
 
     def _compute_disc_obs_demo(self, motion_ids, motion_times0):
-        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, key_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
+        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
         
         if (self._track_global_root()):
             ref_root_pos = torch.zeros_like(root_pos[..., -1, :])
@@ -42,7 +42,12 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         else:
             ref_root_pos = root_pos[..., -1, :]
             ref_root_rot = root_rot[..., -1, :]
-
+            
+        if (self._has_key_bodies()):
+            key_pos = body_pos[..., self._key_body_ids, :]
+        else:
+            key_pos = torch.zeros([0], device=self._device)
+        
         disc_obs = compute_disc_obs(ref_root_pos=ref_root_pos,
                                   ref_root_rot=ref_root_rot,
                                   root_pos=root_pos,
@@ -68,12 +73,8 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         motion_ids = motion_ids.view(-1)
         motion_times = motion_times.view(-1)
         root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel = self._motion_lib.calc_motion_frame(motion_ids, motion_times)
-
-        if (self._has_key_bodies()):
-            body_pos, _ = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
-            key_pos = body_pos[..., self._key_body_ids, :]
-        else:
-            key_pos = torch.zeros([0], device=self._device)
+        
+        body_pos, _ = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
 
         root_pos = torch.reshape(root_pos, shape=[num_samples, self._num_disc_obs_steps, root_pos.shape[-1]])
         root_rot = torch.reshape(root_rot, shape=[num_samples, self._num_disc_obs_steps, root_rot.shape[-1]])
@@ -81,9 +82,9 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         root_ang_vel = torch.reshape(root_ang_vel, shape=[num_samples, self._num_disc_obs_steps, root_ang_vel.shape[-1]])
         joint_rot = torch.reshape(joint_rot, shape=[num_samples, self._num_disc_obs_steps, joint_rot.shape[-2], joint_rot.shape[-1]])
         dof_vel = torch.reshape(dof_vel, shape=[num_samples, self._num_disc_obs_steps, dof_vel.shape[-1]])
-        key_pos = torch.reshape(key_pos, shape=[num_samples, self._num_disc_obs_steps, key_pos.shape[-2], key_pos.shape[-1]])
+        body_pos = torch.reshape(body_pos, shape=[num_samples, self._num_disc_obs_steps, body_pos.shape[-2], body_pos.shape[-1]])
         
-        return root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, key_pos
+        return root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos
 
     def _build_data_buffers(self):
         super()._build_data_buffers()
@@ -100,8 +101,11 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         root_rot = self._engine.get_root_rot(char_id)
         root_vel = self._engine.get_root_vel(char_id)
         root_ang_vel = self._engine.get_root_ang_vel(char_id)
+        dof_pos = self._engine.get_dof_pos(char_id)
         dof_vel = self._engine.get_dof_vel(char_id)
-        body_rot = self._engine.get_body_rot(char_id)
+        body_pos = self._engine.get_body_pos(char_id)
+        
+        joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
 
         self._disc_hist_root_pos = circular_buffer.CircularBuffer(batch_size=num_envs,
                                                                  buffer_len=n, 
@@ -129,8 +133,8 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         
         self._disc_hist_joint_rot = circular_buffer.CircularBuffer(batch_size=num_envs,
                                                                   buffer_len=n,
-                                                                  shape=body_rot[..., 1:, :].shape[1:],
-                                                                  dtype=body_rot.dtype,
+                                                                  shape=joint_rot.shape[1:],
+                                                                  dtype=joint_rot.dtype,
                                                                   device=self._device)
 
         self._disc_hist_dof_vel = circular_buffer.CircularBuffer(batch_size=num_envs,
@@ -138,13 +142,12 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
                                                                 shape=dof_vel.shape[1:],
                                                                 dtype=dof_vel.dtype,
                                                                 device=self._device)
-        if (self._has_key_bodies()):
-            num_key_bodies = len(self._key_body_ids)
-            self._disc_hist_key_pos = circular_buffer.CircularBuffer(batch_size=num_envs,
-                                                                    buffer_len=n,
-                                                                    shape=[num_key_bodies, 3],
-                                                                    dtype=root_pos.dtype,
-                                                                    device=self._device)
+        
+        self._disc_hist_body_pos = circular_buffer.CircularBuffer(batch_size=num_envs,
+                                                                 buffer_len=n,
+                                                                 shape=body_pos.shape[1:],
+                                                                 dtype=body_pos.dtype,
+                                                                 device=self._device)
         
         disc_obs_space = self.get_disc_obs_space()
         disc_obs_dtype = torch_util.numpy_dtype_to_torch(disc_obs_space.dtype)
@@ -172,13 +175,10 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         self._disc_hist_root_vel.push(root_vel)
         self._disc_hist_root_ang_vel.push(root_ang_vel)
         self._disc_hist_dof_vel.push(dof_vel)
+        self._disc_hist_body_pos.push(body_pos)
         
         joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
         self._disc_hist_joint_rot.push(joint_rot)
-
-        if (self._has_key_bodies()):
-            key_pos = body_pos[..., self._key_body_ids, :]
-            self._disc_hist_key_pos.push(key_pos)
 
         return
     
@@ -201,12 +201,8 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         root_ang_vel = self._disc_hist_root_ang_vel.get_all()
         joint_rot = self._disc_hist_joint_rot.get_all()
         dof_vel = self._disc_hist_dof_vel.get_all()
+        body_pos = self._disc_hist_body_pos.get_all()
         
-        if (self._has_key_bodies()):
-            key_pos = self._disc_hist_key_pos.get_all()
-        else:
-            key_pos = torch.zeros([0], device=self._device)
-
         if (env_ids is not None):
             root_pos = root_pos[env_ids]
             root_rot = root_rot[env_ids]
@@ -214,9 +210,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
             root_ang_vel = root_ang_vel[env_ids]
             joint_rot = joint_rot[env_ids]
             dof_vel = dof_vel[env_ids]
-            
-            if (self._has_key_bodies()):
-                key_pos = key_pos[env_ids]
+            body_pos = body_pos[env_ids]
         
         if (self._track_global_root()):
             ref_root_pos = torch.zeros_like(root_pos[..., -1, :])
@@ -225,6 +219,11 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         else:
             ref_root_pos = root_pos[..., -1, :]
             ref_root_rot = root_rot[..., -1, :]
+            
+        if (self._has_key_bodies()):
+            key_pos = body_pos[..., self._key_body_ids, :]
+        else:
+            key_pos = torch.zeros([0], device=self._device)
 
         disc_obs = compute_disc_obs(ref_root_pos=ref_root_pos,
                                   ref_root_rot=ref_root_rot,
@@ -255,7 +254,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         char_id = self._get_char_id()
         root_rot = self._engine.get_root_rot(char_id)
         body_pos = self._engine.get_body_pos(char_id)
-        contact_forces = self._engine.get_contact_forces(char_id)
+        ground_contact_forces = self._engine.get_ground_contact_forces(char_id)
 
         self._done_buf[:] = deepmimic_env.compute_done(done_buf=self._done_buf,
                                          time=self._time_buf, 
@@ -264,9 +263,8 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
                                          body_pos=body_pos,
                                          tar_root_rot=self._ref_root_rot,
                                          tar_body_pos=self._ref_body_pos,
-                                         contact_force=contact_forces,
+                                         ground_contact_force=ground_contact_forces,
                                          contact_body_ids=self._contact_body_ids,
-                                         termination_heights=self._termination_height,
                                          pose_termination=self._pose_termination,
                                          pose_termination_dist=self._pose_termination_dist,
                                          global_obs=self._global_obs,
@@ -290,7 +288,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
     def _reset_disc_hist(self, env_ids):
         motion_ids = self._motion_ids[env_ids]
         motion_times0 = self._get_motion_times(env_ids)
-        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, key_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
+        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
         
         self._disc_hist_root_pos.fill(env_ids, root_pos)
         self._disc_hist_root_rot.fill(env_ids, root_rot)
@@ -298,9 +296,7 @@ class AMPEnv(deepmimic_env.DeepMimicEnv):
         self._disc_hist_root_ang_vel.fill(env_ids, root_ang_vel)
         self._disc_hist_joint_rot.fill(env_ids, joint_rot)
         self._disc_hist_dof_vel.fill(env_ids, dof_vel)
-
-        if (self._has_key_bodies()):
-            self._disc_hist_key_pos.fill(env_ids, key_pos)
+        self._disc_hist_body_pos.fill(env_ids, body_pos)
 
         return
 

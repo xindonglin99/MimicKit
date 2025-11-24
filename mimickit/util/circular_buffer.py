@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 class CircularBuffer():
     def __init__(self, batch_size, buffer_len, shape, dtype, device):
@@ -43,13 +44,11 @@ class CircularBuffer():
         if (self._head == 0):
             data = self._buffer
         else:
-            data_beg = self._buffer[:, self._head:, ...]
-        
             n = self.get_buffer_len()
-            end_idx = (self._head + n) % n
-            data_end = self._buffer[:, 0:end_idx, ...]
+            idx = np.arange(self._head, self._head + n)
+            idx = np.remainder(idx, n)
+            data = self._buffer[:, idx, ...]
 
-            data = torch.cat([data_beg, data_end], dim=1)
         return data
 
     def reset(self):

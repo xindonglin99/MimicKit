@@ -45,26 +45,6 @@ class PPOAgent(base_agent.BaseAgent):
     
     def _get_exp_buffer_length(self):
         return self._steps_per_iter
-
-    def _build_exp_buffer(self, config):
-        super()._build_exp_buffer(config)
-        
-        buffer_length = self._get_exp_buffer_length()
-        batch_size = self.get_num_envs()
-        
-        a_logp_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.float)
-        self._exp_buffer.add_buffer("a_logp", a_logp_buffer)
-        
-        tar_val_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.float)
-        self._exp_buffer.add_buffer("tar_val", tar_val_buffer)
-        
-        adv_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.float)
-        self._exp_buffer.add_buffer("adv", adv_buffer)
-        
-        rand_action_mask_buffer = torch.zeros([buffer_length, batch_size], device=self._device, dtype=torch.float)
-        self._exp_buffer.add_buffer("rand_action_mask", rand_action_mask_buffer)
-        
-        return
     
     def _init_iter(self):
         super()._init_iter()

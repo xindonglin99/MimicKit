@@ -109,7 +109,9 @@ def run(rank, num_procs, device, master_port, args):
     if (mode == "train"):
         env_file = args.parse_string("env_config")
         copy_file_to_dir(env_file, "env_config.yaml", out_model_dir)
-        copy_file_to_dir(agent_file, "agent_config.yaml", out_model_dir)
+
+        if (agent_file != ""):
+            copy_file_to_dir(agent_file, "agent_config.yaml", out_model_dir)
 
         max_samples = args.parse_int("max_samples", np.iinfo(np.int64).max)
         train(agent=agent, max_samples=max_samples, out_model_file=out_model_file, 

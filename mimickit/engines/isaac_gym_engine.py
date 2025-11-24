@@ -12,10 +12,8 @@ import time
 import engines.engine as engine
 
 class IsaacGymEngine(engine.Engine):
-    def __init__(self, config, num_envs, device, visualize, control_mode=None):
+    def __init__(self, config, num_envs, device, visualize):
         super().__init__()
-        physics_engine = gymapi.SimType.SIM_PHYSX
-
         self._device = device
         self._num_envs = num_envs
         self._enable_viewer_sync = True
@@ -31,34 +29,35 @@ class IsaacGymEngine(engine.Engine):
         self._timestep = 1.0 / control_freq
         self._sim_steps = int(sim_freq / control_freq)
         sim_timestep = 1.0 / sim_freq
-        self._sim = self._create_simulator(physics_engine, config, sim_timestep, visualize)
+        self._sim = self._create_simulator(sim_timestep, visualize)
 
+        self._ground_contact_height = config.get("ground_contact_height", 0.3)
         self._env_spacing = config["env_spacing"]
         self._envs = []
-        
-        if (control_mode is not None):
-            self._control_mode = control_mode
-        elif ("control_mode" in config):
+        self._obj_types = []
+
+        if ("control_mode" in config):
             self._control_mode = engine.ControlMode[config["control_mode"]]
         else:
             self._control_mode = engine.ControlMode.none
 
-        self._actor_kp = [[] for i in range(num_envs)]
-        self._actor_kd = [[] for i in range(num_envs)]
-        self._actor_torque_lim = [[] for i in range(num_envs)]
+        self._obj_kp = [[] for i in range(num_envs)]
+        self._obj_kd = [[] for i in range(num_envs)]
+        self._obj_torque_lim = [[] for i in range(num_envs)]
 
-        self._apply_forces_callback = None
-        
-        self._build_ground_plane()
+        self._build_ground()
 
         if (visualize):
             self._build_viewer()
             self._prev_frame_time = 0.0
 
         return
+
+    def get_name(self):
+        return "isaac_gym"
     
     def create_env(self):
-        env_spacing = self._get_env_spacing()
+        env_spacing = self._get_env_spacing() / 2.0
         num_envs = self.get_num_envs()
         num_env_per_row = int(np.sqrt(num_envs))
         lower = gymapi.Vec3(-env_spacing, -env_spacing, 0.0)
@@ -66,11 +65,14 @@ class IsaacGymEngine(engine.Engine):
         env_ptr = self._gym.create_env(self._sim, lower, upper, num_env_per_row)
 
         env_id = len(self._envs)
+        assert(env_id < self.get_num_envs())
+        
         self._envs.append(env_ptr)
+        self._obj_types.append([])
 
         return env_id
     
-    def finalize_sim(self):
+    def initialize_sim(self):
         self._gym.prepare_sim(self._sim)
         self._build_sim_tensors()
         return
@@ -86,33 +88,32 @@ class IsaacGymEngine(engine.Engine):
         return
 
     def update_sim_state(self):
-        actor_ids = self._need_reset_buf.nonzero(as_tuple=False)
-        actor_ids = actor_ids.type(torch.int32).flatten()
+        obj_ids = self._need_reset_buf.nonzero(as_tuple=False)
+        obj_ids = obj_ids.type(torch.int32).flatten()
 
-        if (len(actor_ids) > 0):
+        if (len(obj_ids) > 0):
             self._gym.set_actor_root_state_tensor_indexed(self._sim,
                                                          gymtorch.unwrap_tensor(self._root_state_raw),
-                                                         gymtorch.unwrap_tensor(actor_ids), len(actor_ids))
+                                                         gymtorch.unwrap_tensor(obj_ids), len(obj_ids))
             if (self._has_dof()):
-                has_dof = self._actor_dof_dims[actor_ids.type(torch.long)] > 0
-                dof_actor_ids = actor_ids[has_dof]
+                has_dof = self._obj_dof_dims[obj_ids.type(torch.long)] > 0
+                dof_obj_ids = obj_ids[has_dof]
                 self._gym.set_dof_state_tensor_indexed(self._sim,
                                                       gymtorch.unwrap_tensor(self._dof_state_raw),
-                                                      gymtorch.unwrap_tensor(dof_actor_ids), len(dof_actor_ids))
+                                                      gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
                 
                 dof_pos = self._dof_state_raw[..., :, 0]
                 dof_pos = dof_pos.contiguous()
                 self._gym.set_dof_position_target_tensor_indexed(self._sim,
                                                       gymtorch.unwrap_tensor(dof_pos),
-                                                      gymtorch.unwrap_tensor(dof_actor_ids), len(dof_actor_ids))
+                                                      gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
 
-            self._actors_need_reset[:] = False
-            self._refresh_sim_tensors()
+            self._objs_need_reset[:] = False
 
         return
     
-    def create_actor(self, env_id, asset_file, name, is_visual=False, enable_self_collisions=True, 
-                     fix_base=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
+    def create_obj(self, env_id, obj_type, asset_file, name, is_visual=False, enable_self_collisions=True, 
+                     fix_root=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
         segmentation_id = 0
 
         start_pose = gymapi.Transform()
@@ -139,22 +140,22 @@ class IsaacGymEngine(engine.Engine):
             col_filter = 1
             
         env_ptr = self.get_env(env_id)
-        asset = self._load_asset(asset_file, fix_base)
-        actor_id = self._gym.create_actor(env_ptr, asset, start_pose, name, col_group, col_filter, segmentation_id)
+        asset = self._load_asset(asset_file, fix_root)
+        obj_id = self._gym.create_actor(env_ptr, asset, start_pose, name, col_group, col_filter, segmentation_id)
         
         if (self._enable_dof_force_sensors()):
-            self._gym.enable_actor_dof_force_sensors(env_ptr, actor_id)
+            self._gym.enable_actor_dof_force_sensors(env_ptr, obj_id)
 
         if (disable_motors):
             control_mode = engine.ControlMode.none
         else:
             control_mode = self.get_control_mode()
 
-        dof_props = self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        dof_props = self._gym.get_actor_dof_properties(env_ptr, obj_id)
         kp = dof_props["stiffness"]
         kd = dof_props["damping"]
         
-        actuator_props = self._gym.get_actor_actuator_properties(env_ptr, actor_id)
+        actuator_props = self._gym.get_actor_actuator_properties(env_ptr, obj_id)
         motor_efforts = [prop.motor_effort for prop in actuator_props]
         torque_lim = np.array(motor_efforts)
         
@@ -162,30 +163,32 @@ class IsaacGymEngine(engine.Engine):
             kp = np.zeros_like(kp)
             kd = np.zeros_like(kd)
 
-        self._actor_kp[env_id].append(torch.tensor(kp, device=self._device, dtype=torch.float32))
-        self._actor_kd[env_id].append(torch.tensor(kd, device=self._device, dtype=torch.float32))
-        self._actor_torque_lim[env_id].append(torch.tensor(torque_lim, device=self._device, dtype=torch.float32))
-        assert(actor_id == len(self._actor_kp[env_id]) - 1)
-        assert(actor_id == len(self._actor_kd[env_id]) - 1)
-        assert(actor_id == len(self._actor_torque_lim[env_id]) - 1)
+        self._obj_kp[env_id].append(torch.tensor(kp, device=self._device, dtype=torch.float32))
+        self._obj_kd[env_id].append(torch.tensor(kd, device=self._device, dtype=torch.float32))
+        self._obj_torque_lim[env_id].append(torch.tensor(torque_lim, device=self._device, dtype=torch.float32))
+        assert(obj_id == len(self._obj_kp[env_id]) - 1)
+        assert(obj_id == len(self._obj_kd[env_id]) - 1)
+        assert(obj_id == len(self._obj_torque_lim[env_id]) - 1)
 
         drive_mode = self._control_mode_to_drive_mode(control_mode)
         dof_props["driveMode"] = drive_mode
         self._modify_control_mode_dof_props(control_mode, dof_props)
 
-        self._gym.set_actor_dof_properties(env_ptr, actor_id, dof_props)
+        self._gym.set_actor_dof_properties(env_ptr, obj_id, dof_props)
 
         if (color is not None):
-            num_bodies = self._gym.get_actor_rigid_body_count(env_ptr, actor_id)
+            num_bodies = self.get_obj_num_bodies(obj_id)
             for b in range(num_bodies):
-                self.set_rigid_body_color(env_id, actor_id, b, color)
+                self.set_body_color(env_id, obj_id, b, color)
 
-        return actor_id
+        self._obj_types[env_id].append(obj_type)
+
+        return obj_id
         
-    def set_cmd(self, actor_id, cmd):
+    def set_cmd(self, obj_id, cmd):
         if (self._has_dof()):
-            actor_cmd = self._actor_dof_cmd[actor_id]
-            actor_cmd[:] = cmd
+            obj_cmd = self._obj_dof_cmd[obj_id]
+            obj_cmd[:] = cmd
         return
     
     def update_camera(self, pos, look_at):
@@ -251,133 +254,156 @@ class IsaacGymEngine(engine.Engine):
     def get_num_envs(self):
         return self._num_envs
     
-    def get_actors_per_env(self):
-        return self._actors_per_env
+    def get_objs_per_env(self):
+        return self._objs_per_env
     
-    def get_root_pos(self, actor_id):
-        return self._root_pos[..., actor_id, :]
+    def get_root_pos(self, obj_id):
+        return self._root_pos[..., obj_id, :]
     
-    def get_root_rot(self, actor_id):
-        return self._root_rot[..., actor_id, :]
+    def get_root_rot(self, obj_id):
+        return self._root_rot[..., obj_id, :]
     
-    def get_root_vel(self, actor_id):
-        return self._root_vel[..., actor_id, :]
+    def get_root_vel(self, obj_id):
+        return self._root_vel[..., obj_id, :]
     
-    def get_root_ang_vel(self, actor_id):
-        return self._root_ang_vel[..., actor_id, :]
+    def get_root_ang_vel(self, obj_id):
+        return self._root_ang_vel[..., obj_id, :]
     
-    def get_dof_pos(self, actor_id):
-        return self._actor_dof_pos[actor_id]
+    def get_dof_pos(self, obj_id):
+        return self._obj_dof_pos[obj_id]
     
-    def get_dof_vel(self, actor_id):
-        return self._actor_dof_vel[actor_id]
+    def get_dof_vel(self, obj_id):
+        return self._obj_dof_vel[obj_id]
     
-    def get_dof_forces(self, actor_id):
-        return self._actor_dof_forces[actor_id]
+    def get_dof_forces(self, obj_id):
+        return self._obj_dof_forces[obj_id]
     
-    def get_body_pos(self, actor_id):
-        return self._actor_body_pos[actor_id]
+    def get_body_pos(self, obj_id):
+        return self._obj_body_pos[obj_id]
     
-    def get_body_rot(self, actor_id):
-        return self._actor_body_rot[actor_id]
+    def get_body_rot(self, obj_id):
+        return self._obj_body_rot[obj_id]
     
-    def get_body_vel(self, actor_id):
-        return self._actor_body_vel[actor_id]
+    def get_body_vel(self, obj_id):
+        return self._obj_body_vel[obj_id]
     
-    def get_body_ang_vel(self, actor_id):
-        return self._actor_body_ang_vel[actor_id]
+    def get_body_ang_vel(self, obj_id):
+        return self._obj_body_ang_vel[obj_id]
     
-    def get_contact_forces(self, actor_id):
-        return self._actor_contact_forces[actor_id]
+    def get_contact_forces(self, obj_id):
+        return self._obj_contact_forces[obj_id]
     
-    def set_root_pos(self, env_id, actor_id, root_pos):
-        if (env_id is None):
-            self._root_pos[:, actor_id, :] = root_pos
-        else:
-            self._root_pos[env_id, actor_id, :] = root_pos
+    def get_ground_contact_forces(self, obj_id):
+        ground_forces = self._obj_contact_forces[obj_id].clone()
+        body_pos = self.get_body_pos(obj_id)
 
-        self._flag_actor_needs_reset(env_id, actor_id)
+        body_height = body_pos[..., 2]
+        above_ground = body_height > self._ground_contact_height
+        ground_forces[above_ground, :] = 0.0
+
+        return ground_forces
+    
+    def set_root_pos(self, env_id, obj_id, root_pos):
+        if (env_id is None):
+            self._root_pos[:, obj_id, :] = root_pos
+        else:
+            self._root_pos[env_id, obj_id, :] = root_pos
+
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_root_rot(self, env_id, actor_id, root_rot):
+    def set_root_rot(self, env_id, obj_id, root_rot):
         if (env_id is None):
-            self._root_rot[:, actor_id, :] = root_rot
+            self._root_rot[:, obj_id, :] = root_rot
         else:
-            self._root_rot[env_id, actor_id, :] = root_rot
+            self._root_rot[env_id, obj_id, :] = root_rot
         
-        self._flag_actor_needs_reset(env_id, actor_id)
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_root_vel(self, env_id, actor_id, root_vel):
+    def set_root_vel(self, env_id, obj_id, root_vel):
         if (env_id is None):
-            self._root_vel[:, actor_id, :] = root_vel
+            self._root_vel[:, obj_id, :] = root_vel
         else:
-            self._root_vel[env_id, actor_id, :] = root_vel
+            self._root_vel[env_id, obj_id, :] = root_vel
         
-        self._flag_actor_needs_reset(env_id, actor_id)
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_root_ang_vel(self, env_id, actor_id, root_ang_vel):
+    def set_root_ang_vel(self, env_id, obj_id, root_ang_vel):
         if (env_id is None):
-            self._root_ang_vel[:, actor_id, :] = root_ang_vel
+            self._root_ang_vel[:, obj_id, :] = root_ang_vel
         else:
-            self._root_ang_vel[env_id, actor_id, :] = root_ang_vel
+            self._root_ang_vel[env_id, obj_id, :] = root_ang_vel
         
-        self._flag_actor_needs_reset(env_id, actor_id)
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_dof_pos(self, env_id, actor_id, dof_pos):
+    def set_dof_pos(self, env_id, obj_id, dof_pos):
         if (env_id is None):
-            self._actor_dof_pos[actor_id][:] = dof_pos
+            self._obj_dof_pos[obj_id][:] = dof_pos
         else:
-            self._actor_dof_pos[actor_id][env_id, :] = dof_pos
+            self._obj_dof_pos[obj_id][env_id, :] = dof_pos
         
-        self._flag_actor_needs_reset(env_id, actor_id)
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_dof_vel(self, env_id, actor_id, dof_vel):
+    def set_dof_vel(self, env_id, obj_id, dof_vel):
         if (env_id is None):
-            self._actor_dof_vel[actor_id][:] = dof_vel
+            self._obj_dof_vel[obj_id][:] = dof_vel
         else:
-            self._actor_dof_vel[actor_id][env_id, :] = dof_vel
+            self._obj_dof_vel[obj_id][env_id, :] = dof_vel
         
-        self._flag_actor_needs_reset(env_id, actor_id)
+        self._flag_obj_needs_reset(env_id, obj_id)
         return
     
-    def set_body_vel(self, env_id, actor_id, body_vel):
+    def set_body_pos(self, env_id, obj_id, body_pos):
         if (env_id is None):
-            self._actor_body_vel[actor_id][:] = body_vel
+            self._obj_body_pos[obj_id][:] = body_pos
         else:
-            self._actor_body_vel[actor_id][env_id, :] = body_vel
-        
-        self._flag_actor_needs_reset(env_id, actor_id)
+            self._obj_body_pos[obj_id][env_id, :] = body_pos
+
+        # don't need to flag reset after setting body states since those 
+        # do not directly affect the simulator
         return
     
-    def set_body_ang_vel(self, env_id, actor_id, body_ang_vel):
+    def set_body_rot(self, env_id, obj_id, body_rot):
         if (env_id is None):
-            self._actor_body_ang_vel[actor_id][:] = body_ang_vel
+            self._obj_body_rot[obj_id][:] = body_rot
         else:
-            self._actor_body_ang_vel[actor_id][env_id, :] = body_ang_vel
-        
-        self._flag_actor_needs_reset(env_id, actor_id)
+            self._obj_body_rot[obj_id][env_id, :] = body_rot
         return
     
-    def set_body_forces(self, env_id, actor_id, body_id, forces):
+    def set_body_vel(self, env_id, obj_id, body_vel):
         if (env_id is None):
-            self._actor_body_forces[actor_id][:, body_id, :] = forces
+            self._obj_body_vel[obj_id][:] = body_vel
         else:
-            self._actor_body_forces[actor_id][env_id, body_id, :] = forces
+            self._obj_body_vel[obj_id][env_id, :] = body_vel
+        return
+    
+    def set_body_ang_vel(self, env_id, obj_id, body_ang_vel):
+        if (env_id is None):
+            self._obj_body_ang_vel[obj_id][:] = body_ang_vel
+        else:
+            self._obj_body_ang_vel[obj_id][env_id, :] = body_ang_vel
+        return
+    
+    def set_body_forces(self, env_id, obj_id, body_id, forces):
+        if (env_id is None):
+            self._obj_body_forces[obj_id][:, body_id, :] = forces
+        else:
+            self._obj_body_forces[obj_id][env_id, body_id, :] = forces
 
         if (env_id is None or len(env_id) > 0):
             self._has_body_forces = True
         return
     
-    def get_actor_torque_lim(self, env_id, actor_id):
-        return self._actor_torque_lim[actor_id][env_id].cpu().numpy()
+    def get_obj_torque_lim(self, env_id, obj_id):
+        return self._obj_torque_lim[obj_id][env_id].cpu().numpy()
     
-    def get_actor_dof_limits(self, env_id, actor_id):
+    def get_obj_dof_limits(self, env_id, obj_id):
         env_ptr = self.get_env(env_id)
-        dof_props = self._gym.get_actor_dof_properties(env_ptr, actor_id)
+        dof_props = self._gym.get_actor_dof_properties(env_ptr, obj_id)
         dof_low = dof_props["lower"]
         dof_high = dof_props["upper"]
 
@@ -389,61 +415,67 @@ class IsaacGymEngine(engine.Engine):
         for i, (l, h) in enumerate(zip(low_arr, high_arr)):
             # both bounds zero
             if l == 0 and h == 0:
-                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Either upper or lower limit must be non-zero for all DoFs.")
+                raise ValueError(f"Env {env_id} Obj {obj_id} DoF {i}: both lower and upper limits are 0.0 — this may indicate a fixed joint or missing limits. Either upper or lower limit must be non-zero for all DoFs.")
 
             # infinite or NaN bounds
             if not np.isfinite(l) or not np.isfinite(h):
-                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+                raise ValueError(f"Env {env_id} Obj {obj_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
 
             # extremely large magnitude bounds (likely a placeholder for +/-inf)
             if (abs(l) > threshold or abs(h) > threshold):
-                raise ValueError(f"Env {env_id} Actor {actor_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
+                raise ValueError(f"Env {env_id} Obj {obj_id} DoF {i}: invalid bound detected (lower={l}, upper={h}).")
 
         return dof_low, dof_high
     
-    def find_actor_body_id(self, env_id, actor_id, body_name):
-        env_ptr = self.get_env(env_id)
-        return self._gym.find_actor_rigid_body_handle(env_ptr, actor_id, body_name)
+    def find_obj_body_id(self, obj_id, body_name):
+        env_ptr = self.get_env(0)
+        return self._gym.find_actor_rigid_body_handle(env_ptr, obj_id, body_name)
     
     def get_env(self, env_id):
         return self._envs[env_id]
     
-    def set_rigid_body_color(self, env_id, actor_id, body_id, color):
+    def set_body_color(self, env_id, obj_id, body_id, color):
         env_ptr = self.get_env(env_id)
-        self._gym.set_rigid_body_color(env_ptr, actor_id, body_id, gymapi.MESH_VISUAL,
+        self._gym.set_rigid_body_color(env_ptr, obj_id, body_id, gymapi.MESH_VISUAL,
                                        gymapi.Vec3(color[0], color[1], color[2]))
         return
     
-    def get_actor_dof_count(self, env_id, actor_id):
-        env_ptr = self.get_env(env_id)
-        num_dofs = self._gym.get_actor_dof_count(env_ptr, actor_id)
+    def get_obj_type(self, obj_id):
+        return self._obj_types[obj_id]
+    
+    def get_obj_num_bodies(self, obj_id):
+        env_ptr = self.get_env(0)
+        num_bodies = self._gym.get_actor_rigid_body_count(env_ptr, obj_id)
+        return num_bodies
+    
+    def get_obj_num_dofs(self, obj_id):
+        env_ptr = self.get_env(0)
+        num_dofs = self._gym.get_actor_dof_count(env_ptr, obj_id)
         return num_dofs
     
-    def get_actor_body_names(self, env_id, actor_id):
-        env_ptr = self.get_env(env_id)
-        body_names = self._gym.get_actor_rigid_body_names(env_ptr, actor_id)
+    def get_obj_body_names(self, obj_id):
+        env_ptr = self.get_env(0)
+        body_names = self._gym.get_actor_rigid_body_names(env_ptr, obj_id)
         return body_names
     
-    def calc_actor_mass(self, env_id, actor_id):
+    def calc_obj_mass(self, env_id, obj_id):
         env_ptr = self.get_env(env_id)
-        rb_props = self._gym.get_actor_rigid_body_properties(env_ptr, actor_id)
+        rb_props = self._gym.get_actor_rigid_body_properties(env_ptr, obj_id)
         total_mass = sum(rb.mass for rb in rb_props)
         return total_mass
     
     def get_control_mode(self):
         return self._control_mode
     
-    def draw_lines(self, env_id, verts, cols):
+    def draw_lines(self, env_id, start_verts, end_verts, cols, line_widths):
         env_ptr = self.get_env(env_id)
-        num_lines = verts.shape[0]
+        num_lines = start_verts.shape[0]
+        cols = cols[..., :3]
+        verts = np.concatenate([start_verts, end_verts], axis=-1)
         self._gym.add_lines(self._viewer, env_ptr, num_lines, verts, cols)
         return
 
-    def set_apply_forces_callback(self, callback):
-        self._apply_forces_callback = callback
-        return
-
-    def _load_asset(self, file, fix_base):
+    def _load_asset(self, file, fix_root):
         if (file in self._asset_cache):
             asset = self._asset_cache[file]
 
@@ -451,7 +483,7 @@ class IsaacGymEngine(engine.Engine):
             asset_options = gymapi.AssetOptions()
             asset_options.angular_damping = 0.01
             asset_options.max_angular_velocity = 100.0
-            asset_options.fix_base_link = fix_base
+            asset_options.fix_base_link = fix_root
 
             file_dir = os.path.dirname(file)
             file_name = os.path.basename(file)
@@ -462,7 +494,7 @@ class IsaacGymEngine(engine.Engine):
         return asset
     
     
-    def _build_ground_plane(self):
+    def _build_ground(self):
         plane_params = gymapi.PlaneParams()
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
         plane_params.static_friction = 1.0
@@ -472,9 +504,9 @@ class IsaacGymEngine(engine.Engine):
         self._gym.add_ground(self._sim, plane_params)
         return
     
-    def _create_simulator(self, physics_engine, config, sim_timestep, visualize):
-        sim_substeps = config["sim_substeps"]
-        sim_params = self._build_sim_params(sim_substeps, sim_timestep)
+    def _create_simulator(self, sim_timestep, visualize):
+        physics_engine = gymapi.SimType.SIM_PHYSX
+        sim_params = self._build_sim_params(sim_timestep)
 
         compute_device_id = self._get_device_idx()
         if (visualize):
@@ -502,7 +534,7 @@ class IsaacGymEngine(engine.Engine):
                 self._gym.set_dof_velocity_target_tensor(self._sim, cmd_tensor)
             elif (self._control_mode == engine.ControlMode.torque):
                 pass
-            elif (self._control_mode == engine.ControlMode.pd_1d):
+            elif (self._control_mode == engine.ControlMode.pd_explicit):
                 pass
             else:
                 assert(False), "Unsupported control mode: {}".format(self._control_mode)
@@ -510,19 +542,15 @@ class IsaacGymEngine(engine.Engine):
         return
 
     def _pre_sim_step(self):
-        if (self._apply_forces_callback is not None
-            or self._control_mode == engine.ControlMode.pd_1d):
+        if (self._control_mode == engine.ControlMode.pd_explicit):
             self._gym.refresh_dof_state_tensor(self._sim)
-
-        if (self._apply_forces_callback is not None):
-            self._apply_forces_callback()
 
         if (self._control_mode == engine.ControlMode.torque):
             cmd_buf = self._get_dof_cmd_buf()
             self._set_actuation_torque(cmd_buf)
 
-        elif (self._control_mode == engine.ControlMode.pd_1d):
-            torque = self._calc_pd_1d_torque()
+        elif (self._control_mode == engine.ControlMode.pd_explicit):
+            torque = self._calc_pd_explicit_torque()
             self._set_actuation_torque(torque)
 
         if (self._has_body_forces):
@@ -542,11 +570,11 @@ class IsaacGymEngine(engine.Engine):
         self._gym.set_dof_actuation_force_tensor(self._sim, torque_tensor)
         return
     
-    def _flag_actor_needs_reset(self, env_id, actor_id):
+    def _flag_obj_needs_reset(self, env_id, obj_id):
         if (env_id is None):
-            self._actors_need_reset[:, actor_id] = True
-        else:
-            self._actors_need_reset[env_id, actor_id] = True
+            self._objs_need_reset[:, obj_id] = True
+        elif (len(env_id) > 0):
+            self._objs_need_reset[env_id, obj_id] = True
         return
     
     def _refresh_sim_tensors(self):
@@ -560,8 +588,9 @@ class IsaacGymEngine(engine.Engine):
         if self._enable_dof_force_sensors():
             self._gym.refresh_dof_force_tensor(self._sim)
             
-        self._has_body_forces = False
-        self._body_forces_raw[:] = 0.0
+        if (self._has_body_forces):
+            self._body_forces_raw[:] = 0.0
+            self._has_body_forces = False
         return
     
     def _control_mode_to_drive_mode(self, mode):
@@ -573,15 +602,15 @@ class IsaacGymEngine(engine.Engine):
             drive_mode = gymapi.DOF_MODE_VEL
         elif (mode == engine.ControlMode.torque):
             drive_mode = gymapi.DOF_MODE_EFFORT   
-        elif (mode == engine.ControlMode.pd_1d):
+        elif (mode == engine.ControlMode.pd_explicit):
             drive_mode = gymapi.DOF_MODE_EFFORT 
         else:
             assert(False), "Unsupported control mode: {}".format(mode)
         return drive_mode
     
-    def _build_sim_params(self, substeps, sim_timestep):
+    def _build_sim_params(self, sim_timestep):
         sim_params = gymapi.SimParams()
-        sim_params.substeps = substeps
+        sim_params.substeps = 1
         sim_params.dt = sim_timestep
         sim_params.num_client_threads = 0
         
@@ -602,6 +631,8 @@ class IsaacGymEngine(engine.Engine):
         sim_params.physx.num_subscenes = 0
         sim_params.physx.max_gpu_contact_pairs = 8 * 1024 * 1024
         
+        sim_params.flex.dynamic_friction = 1.0
+        sim_params.flex.static_friction = 1.0
         sim_params.flex.num_inner_iterations = 10
         sim_params.flex.warm_start = 0.25
 
@@ -636,7 +667,7 @@ class IsaacGymEngine(engine.Engine):
         elif (control_mode == engine.ControlMode.torque):
             dof_props["stiffness"] = 0.0
             dof_props["damping"] = 0.0
-        elif (control_mode == engine.ControlMode.pd_1d):
+        elif (control_mode == engine.ControlMode.pd_explicit):
             dof_props["stiffness"] = 0.0
             dof_props["damping"] = 0.0
         else:
@@ -656,10 +687,10 @@ class IsaacGymEngine(engine.Engine):
         self._contact_force_raw = gymtorch.wrap_tensor(contact_force_tensor)
         
         num_envs = self.get_num_envs()
-        num_actors = self._root_state_raw.shape[0]
-        self._actors_per_env = num_actors // num_envs
+        num_objs = self._root_state_raw.shape[0]
+        self._objs_per_env = num_objs // num_envs
 
-        root_state = self._root_state_raw.view([num_envs, self._actors_per_env, 
+        root_state = self._root_state_raw.view([num_envs, self._objs_per_env, 
                                                 self._root_state_raw.shape[-1]])
         
         self._root_state = root_state
@@ -672,28 +703,28 @@ class IsaacGymEngine(engine.Engine):
             dofs_per_env = self._dof_state_raw.shape[0] // num_envs
             dof_state = self._dof_state_raw.view([num_envs, dofs_per_env, 2])
             self._dof_state = dof_state
-            self._actor_dof_pos = []
-            self._actor_dof_vel = []
+            self._obj_dof_pos = []
+            self._obj_dof_vel = []
             
             if self._enable_dof_force_sensors():
                 dof_force_tensor = self._gym.acquire_dof_force_tensor(self._sim)
                 self._dof_forces_raw = gymtorch.wrap_tensor(dof_force_tensor)
                 dof_forces = self._dof_forces_raw.view([num_envs, dofs_per_env])
-                self._actor_dof_forces = []
+                self._obj_dof_forces = []
 
             dof_idx0 = 0
-            for a in range(self._actors_per_env):
-                actor_dof_dim = self.get_actor_dof_count(0, a)
-                dof_idx1 = dof_idx0 + actor_dof_dim
-                actor_dof_pos = dof_state[..., dof_idx0:dof_idx1, 0]
-                actor_dof_vel = dof_state[..., dof_idx0:dof_idx1, 1]
+            for i in range(self._objs_per_env):
+                obj_dof_dim = self.get_obj_num_dofs(i)
+                dof_idx1 = dof_idx0 + obj_dof_dim
+                obj_dof_pos = dof_state[..., dof_idx0:dof_idx1, 0]
+                obj_dof_vel = dof_state[..., dof_idx0:dof_idx1, 1]
 
-                self._actor_dof_pos.append(actor_dof_pos)
-                self._actor_dof_vel.append(actor_dof_vel)
+                self._obj_dof_pos.append(obj_dof_pos)
+                self._obj_dof_vel.append(obj_dof_vel)
                 
                 if self._enable_dof_force_sensors():
-                    actor_dof_force = dof_forces[..., dof_idx0:dof_idx1]
-                    self._actor_dof_forces.append(actor_dof_force)
+                    obj_dof_force = dof_forces[..., dof_idx0:dof_idx1]
+                    self._obj_dof_forces.append(obj_dof_force)
 
                 dof_idx0 = dof_idx1
 
@@ -704,101 +735,99 @@ class IsaacGymEngine(engine.Engine):
 
         bodies_per_env = self._body_state_raw.shape[0] // num_envs
         body_state = self._body_state_raw.view([num_envs, bodies_per_env, 
-                                                                  self._body_state_raw.shape[-1]])
+                                                self._body_state_raw.shape[-1]])
 
         contact_forces = self._contact_force_raw.view([num_envs, bodies_per_env, 3])
 
         self._body_forces_raw = torch.zeros_like(self._body_state_raw[..., :3])
         body_forces = self._body_forces_raw.view([num_envs, bodies_per_env, 3])
 
-        # Note: NEVER use these tensors in observations calculations
+        # Note: Careful when using these tensors in observations calculations
         # they are not updated immediately during episode resets, and are not valid
-        # until the second timestep after a reset
-        self._actor_body_pos = []
-        self._actor_body_rot = []
-        self._actor_body_vel = []
-        self._actor_body_ang_vel = []
-        self._actor_contact_forces = []
-        self._actor_body_forces = []
+        # until the after the simulator as been updated for one timestep
+        self._obj_body_pos = []
+        self._obj_body_rot = []
+        self._obj_body_vel = []
+        self._obj_body_ang_vel = []
+        self._obj_contact_forces = []
+        self._obj_body_forces = []
         self._has_body_forces = False
 
-        env_ptr = self.get_env(0)
         body_idx0 = 0
-        for a in range(self._actors_per_env):
-            num_bodies = self._gym.get_actor_rigid_body_count(env_ptr, a)
+        for obj_id in range(self._objs_per_env):
+            num_bodies = self.get_obj_num_bodies(obj_id)
             body_idx1 = body_idx0 + num_bodies
 
-            actor_body_pos = body_state[..., body_idx0:body_idx1, 0:3]
-            actor_body_rot = body_state[..., body_idx0:body_idx1, 3:7]
-            actor_body_vel = body_state[..., body_idx0:body_idx1, 7:10]
-            actor_body_ang_vel = body_state[..., body_idx0:body_idx1, 10:13]
-            actor_body_forces = body_forces[..., body_idx0:body_idx1, :]
-            actor_contact_forces = contact_forces[..., body_idx0:body_idx1, :]
+            obj_body_pos = body_state[..., body_idx0:body_idx1, 0:3]
+            obj_body_rot = body_state[..., body_idx0:body_idx1, 3:7]
+            obj_body_vel = body_state[..., body_idx0:body_idx1, 7:10]
+            obj_body_ang_vel = body_state[..., body_idx0:body_idx1, 10:13]
+            obj_body_forces = body_forces[..., body_idx0:body_idx1, :]
+            obj_contact_forces = contact_forces[..., body_idx0:body_idx1, :]
 
-            self._actor_body_pos.append(actor_body_pos)
-            self._actor_body_rot.append(actor_body_rot)
-            self._actor_body_vel.append(actor_body_vel)
-            self._actor_body_ang_vel.append(actor_body_ang_vel)
-            self._actor_body_forces.append(actor_body_forces)
-            self._actor_contact_forces.append(actor_contact_forces)
+            self._obj_body_pos.append(obj_body_pos)
+            self._obj_body_rot.append(obj_body_rot)
+            self._obj_body_vel.append(obj_body_vel)
+            self._obj_body_ang_vel.append(obj_body_ang_vel)
+            self._obj_body_forces.append(obj_body_forces)
+            self._obj_contact_forces.append(obj_contact_forces)
 
             body_idx0 = body_idx1
         
-        self._need_reset_buf = torch.zeros(num_actors, device=self._device, dtype=torch.bool)
-        self._actors_need_reset = self._need_reset_buf.view((num_envs, self._actors_per_env))
-        self._actor_dof_dims = self._build_actor_dof_dims()
+        self._need_reset_buf = torch.zeros(num_objs, device=self._device, dtype=torch.bool)
+        self._objs_need_reset = self._need_reset_buf.view((num_envs, self._objs_per_env))
+        self._obj_dof_dims = self._build_obj_dof_dims()
 
         return
     
     def _build_control_tensors(self):
-        self._kp_raw = [torch.cat(kp) for kp in self._actor_kp]
+        self._kp_raw = [torch.cat(kp) for kp in self._obj_kp]
         self._kp_raw = torch.stack(self._kp_raw, dim=0)
         
-        self._kd_raw = [torch.cat(kd) for kd in self._actor_kd]
+        self._kd_raw = [torch.cat(kd) for kd in self._obj_kd]
         self._kd_raw = torch.stack(self._kd_raw, dim=0)
         
-        self._torque_lim_raw = [torch.cat(lim) for lim in self._actor_torque_lim]
+        self._torque_lim_raw = [torch.cat(lim) for lim in self._obj_torque_lim]
         self._torque_lim_raw = torch.stack(self._torque_lim_raw, dim=0)
 
         self._dof_cmd_raw = torch.zeros_like(self._kp_raw)
 
-        self._actor_dof_cmd = []
-        self._actor_kp = []
-        self._actor_kd = []
-        self._actor_torque_lim = []
+        self._obj_dof_cmd = []
+        self._obj_kp = []
+        self._obj_kd = []
+        self._obj_torque_lim = []
 
         dof_idx0 = 0
-        actors_per_env = self.get_actors_per_env()
-        for a in range(actors_per_env):
-            actor_dof_dim = self.get_actor_dof_count(0, a)
-            dof_idx1 = dof_idx0 + actor_dof_dim
-            actor_dof_cmd = self._dof_cmd_raw[..., dof_idx0:dof_idx1]
-            actor_kp = self._kp_raw[..., dof_idx0:dof_idx1]
-            actor_kd = self._kd_raw[..., dof_idx0:dof_idx1]
-            actor_torque_lim = self._torque_lim_raw[..., dof_idx0:dof_idx1]
+        objs_per_env = self.get_objs_per_env()
+        for i in range(objs_per_env):
+            obj_dof_dim = self.get_obj_num_dofs(i)
+            dof_idx1 = dof_idx0 + obj_dof_dim
+            obj_dof_cmd = self._dof_cmd_raw[..., dof_idx0:dof_idx1]
+            obj_kp = self._kp_raw[..., dof_idx0:dof_idx1]
+            obj_kd = self._kd_raw[..., dof_idx0:dof_idx1]
+            obj_torque_lim = self._torque_lim_raw[..., dof_idx0:dof_idx1]
 
-            self._actor_dof_cmd.append(actor_dof_cmd)
-            self._actor_kp.append(actor_kp)
-            self._actor_kd.append(actor_kd)
-            self._actor_torque_lim.append(actor_torque_lim)
+            self._obj_dof_cmd.append(obj_dof_cmd)
+            self._obj_kp.append(obj_kp)
+            self._obj_kd.append(obj_kd)
+            self._obj_torque_lim.append(obj_torque_lim)
 
             dof_idx0 = dof_idx1
 
         return
     
-    def _build_actor_dof_dims(self):
+    def _build_obj_dof_dims(self):
         num_envs = self.get_num_envs()
-        actors_per_env = self.get_actors_per_env()
+        objs_per_env = self.get_objs_per_env()
 
-        actor_dof_dims = torch.zeros(num_envs * actors_per_env, device=self._device, dtype=torch.int)
-        env_actor_dof_dims = actor_dof_dims.view([num_envs, actors_per_env])
+        obj_dof_dims = torch.zeros(num_envs * objs_per_env, device=self._device, dtype=torch.int)
+        env_obj_dof_dims = obj_dof_dims.view([num_envs, objs_per_env])
 
-        for e in range(num_envs):
-            for a in range(actors_per_env):
-                num_dofs = self.get_actor_dof_count(e, a)
-                env_actor_dof_dims[e, a] = num_dofs
+        for obj_id in range(objs_per_env):
+            num_dofs = self.get_obj_num_dofs(obj_id)
+            env_obj_dof_dims[:, obj_id] = num_dofs
 
-        return actor_dof_dims
+        return obj_dof_dims
 
     def _build_viewer(self):
         # subscribe to keyboard shortcuts
@@ -836,7 +865,7 @@ class IsaacGymEngine(engine.Engine):
     def _get_dof_cmd_buf(self):
         return self._dof_cmd_raw
     
-    def _calc_pd_1d_torque(self):
+    def _calc_pd_explicit_torque(self):
         dof_pos = self._dof_state[..., :, 0]
         dof_vel = self._dof_state[..., :, 1]
         tar_dof = self._get_dof_cmd_buf()

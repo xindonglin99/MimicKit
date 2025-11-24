@@ -3,6 +3,8 @@ import envs.char_env as char_env
 import numpy as np
 import torch
 
+import engines.engine as engine
+
 class CharDofTestEnv(char_env.CharEnv):
     def __init__(self, config, num_envs, device, visualize):
         self._time_per_dof = 4.0
@@ -54,10 +56,11 @@ class CharDofTestEnv(char_env.CharEnv):
     
     def _build_character(self, env_id, config, color=None):
         char_file = config["env"]["char_file"]
-        char_id = self._engine.create_actor(env_id=env_id, 
-                                             asset_file=char_file,
-                                             name="character",
-                                             enable_self_collisions=False,
-                                             fix_base=True,
-                                             color=color)
+        char_id = self._engine.create_obj(env_id=env_id, 
+                                          obj_type=engine.ObjType.articulated,
+                                          asset_file=char_file,
+                                          name="character",
+                                          enable_self_collisions=False,
+                                          fix_root=True,
+                                          color=color)
         return char_id

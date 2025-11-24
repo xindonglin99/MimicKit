@@ -37,6 +37,7 @@ class ADDEnv(amp_env.AMPEnv):
         root_ang_vel = self._disc_hist_root_ang_vel.get_all()
         joint_rot = self._disc_hist_joint_rot.get_all()
         dof_vel = self._disc_hist_dof_vel.get_all()
+        body_pos = self._disc_hist_body_pos.get_all()
 
         if (env_ids is not None):
             root_pos = root_pos[env_ids]
@@ -45,8 +46,7 @@ class ADDEnv(amp_env.AMPEnv):
             root_ang_vel = root_ang_vel[env_ids]
             joint_rot = joint_rot[env_ids]
             dof_vel = dof_vel[env_ids]
-
-        body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+            body_pos = body_pos[env_ids]
 
         disc_obs = compute_disc_obs(root_pos=root_pos,
                                   root_rot=root_rot, 
@@ -55,7 +55,6 @@ class ADDEnv(amp_env.AMPEnv):
                                   joint_rot=joint_rot,
                                   dof_vel=dof_vel,
                                   body_pos=body_pos,
-                                  body_rot=body_rot,
                                   global_obs=self._global_obs)
 
         if (env_ids is None):
@@ -82,8 +81,7 @@ class ADDEnv(amp_env.AMPEnv):
         return
     
     def _compute_disc_obs_demo(self, motion_ids, motion_times0):
-        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, key_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
-        body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
+        root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos = self._fetch_disc_demo_data(motion_ids, motion_times0)
 
         disc_obs = compute_disc_obs(root_pos=root_pos,
                                   root_rot=root_rot, 
@@ -92,7 +90,6 @@ class ADDEnv(amp_env.AMPEnv):
                                   joint_rot=joint_rot,
                                   dof_vel=dof_vel,
                                   body_pos=body_pos,
-                                  body_rot=body_rot,
                                   global_obs=self._global_obs)
         return disc_obs
     
@@ -101,8 +98,8 @@ class ADDEnv(amp_env.AMPEnv):
         return
 
 @torch.jit.script
-def compute_pos_obs(root_pos, root_rot, joint_rot, body_pos, body_rot, global_obs):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
+def compute_pos_obs(root_pos, root_rot, joint_rot, body_pos, global_obs):
+    # type: (Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
 
     root_pos_obs = root_pos.detach().clone()
     body_pos = body_pos - root_pos.unsqueeze(-2)
@@ -121,19 +118,17 @@ def compute_pos_obs(root_pos, root_rot, joint_rot, body_pos, body_rot, global_ob
         body_pos_flat = torch_util.quat_rotate(heading_inv_rot_expand_flat, body_pos_flat)
         body_pos = torch.reshape(body_pos_flat, body_pos.shape)
 
-        body_rot = torch_util.quat_mul(heading_inv_rot_expand, body_rot)
-
     root_rot_flat = torch.reshape(root_rot, [root_rot.shape[0] * root_rot.shape[1], root_rot.shape[2]])
     root_rot_obs_flat = torch_util.quat_to_tan_norm(root_rot_flat)
     root_rot_obs = torch.reshape(root_rot_obs_flat, [root_rot.shape[0], root_rot.shape[1], root_rot_obs_flat.shape[-1]])
 
+    joint_rot_flat = torch.reshape(joint_rot, [joint_rot.shape[0] * joint_rot.shape[1] * joint_rot.shape[2], joint_rot.shape[3]])
+    joint_rot_obs_flat = torch_util.quat_to_tan_norm(joint_rot_flat)
+    joint_rot_obs = torch.reshape(joint_rot_obs_flat, [joint_rot.shape[0], joint_rot.shape[1], joint_rot.shape[2] * joint_rot_obs_flat.shape[-1]])
+    
     body_pos = torch.reshape(body_pos, [body_pos.shape[0], body_pos.shape[1], body_pos.shape[2] * body_pos.shape[3]])
-                                 
-    body_rot_flat = torch.reshape(body_rot, [body_rot.shape[0] * body_rot.shape[1] * body_rot.shape[2], body_rot.shape[3]])
-    body_rot_obs_flat = torch_util.quat_to_tan_norm(body_rot_flat)
-    body_rot_obs = torch.reshape(body_rot_obs_flat, [body_rot.shape[0], body_rot.shape[1], body_rot.shape[2] * body_rot_obs_flat.shape[-1]])
-
-    obs = [root_pos_obs, root_rot_obs, body_pos, body_rot_obs]
+    
+    obs = [root_pos_obs, root_rot_obs, joint_rot_obs, body_pos]
     obs = torch.cat(obs, dim=-1)
 
     return obs
@@ -156,14 +151,13 @@ def compute_disc_vel_obs(root_rot, root_vel, root_ang_vel, dof_vel, global_obs):
     return obs
 
 @torch.jit.script
-def compute_disc_obs(root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos, body_rot, global_obs):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
+def compute_disc_obs(root_pos, root_rot, root_vel, root_ang_vel, joint_rot, dof_vel, body_pos, global_obs):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
 
     pos_obs = compute_pos_obs(root_pos=root_pos, 
                             root_rot=root_rot, 
                             joint_rot=joint_rot, 
                             body_pos=body_pos,
-                            body_rot=body_rot,
                             global_obs=global_obs)
 
     vel_obs = compute_disc_vel_obs(root_rot=root_rot,

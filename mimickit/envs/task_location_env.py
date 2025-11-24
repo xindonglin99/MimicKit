@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+import engines.engine as engine
 import envs.amp_env as amp_env
 import util.torch_util as torch_util
 
@@ -39,12 +40,13 @@ class TaskLocationEnv(amp_env.AMPEnv):
     def _build_marker(self, env_id):
         asset_file = "data/assets/objects/location_marker.urdf"
 
-        marker_id = self._engine.create_actor(env_id=env_id, 
-                                             asset_file=asset_file, 
-                                             name="marker",
-                                             is_visual=True,
-                                             fix_base=True,
-                                             color=[0.8, 0.0, 0.0])
+        marker_id = self._engine.create_obj(env_id=env_id, 
+                                            obj_type=engine.ObjType.rigid,
+                                            asset_file=asset_file, 
+                                            name="marker",
+                                            is_visual=True,
+                                            fix_root=True,
+                                            color=[0.8, 0.0, 0.0])
         
         return marker_id
 
@@ -159,25 +161,25 @@ class TaskLocationEnv(amp_env.AMPEnv):
         return
 
     def _render(self):
-        super()._render()
         self._render_location()
+        super()._render()
         return
 
     def _render_location(self):
-        cols = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+        col = np.array([[1.0, 0.0, 0.0, 0.5]], dtype=np.float32)
+        line_width = np.array([2.0], dtype=np.float32)
         
         char_id = self._get_char_id()
         char_root_pos = self._engine.get_root_pos(char_id)
 
-        starts = char_root_pos[..., 0:3]
-        ends = self._tar_pos
-        verts = torch.cat([starts, ends], dim=-1).cpu().numpy()
+        starts = char_root_pos[..., 0:3].cpu().numpy()
+        ends = self._tar_pos.cpu().numpy()
         
         num_envs = self.get_num_envs()
         for i in range(num_envs):
-            curr_verts = verts[i]
-            curr_verts = curr_verts.reshape([1, 6])
-            self._engine.draw_lines(i, curr_verts, cols)
+            curr_start = starts[i:i + 1]
+            curr_end = ends[i:i + 1]
+            self._engine.draw_lines(i, curr_start, curr_end, col, line_width)
 
         return
     
