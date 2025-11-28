@@ -1,7 +1,7 @@
 env_name: "char_dof_test"
 
 env:
-    char_file: "data/assets/hightorque/pi_plus/pi_22dof.xml"
+    char_file: "data/assets/hightorque_pi_plus/pi_22dof.xml"
     camera_mode: "still"
 
     episode_length: 20.0 # seconds
