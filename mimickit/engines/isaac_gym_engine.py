@@ -98,15 +98,17 @@ class IsaacGymEngine(engine.Engine):
             if (self._has_dof()):
                 has_dof = self._obj_dof_dims[obj_ids.type(torch.long)] > 0
                 dof_obj_ids = obj_ids[has_dof]
-                self._gym.set_dof_state_tensor_indexed(self._sim,
-                                                      gymtorch.unwrap_tensor(self._dof_state_raw),
-                                                      gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
                 
-                dof_pos = self._dof_state_raw[..., :, 0]
-                dof_pos = dof_pos.contiguous()
-                self._gym.set_dof_position_target_tensor_indexed(self._sim,
-                                                      gymtorch.unwrap_tensor(dof_pos),
-                                                      gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
+                if (dof_obj_ids.shape[0] > 0):
+                    self._gym.set_dof_state_tensor_indexed(self._sim,
+                                                        gymtorch.unwrap_tensor(self._dof_state_raw),
+                                                        gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
+                    
+                    dof_pos = self._dof_state_raw[..., :, 0]
+                    dof_pos = dof_pos.contiguous()
+                    self._gym.set_dof_position_target_tensor_indexed(self._sim,
+                                                        gymtorch.unwrap_tensor(dof_pos),
+                                                        gymtorch.unwrap_tensor(dof_obj_ids), len(dof_obj_ids))
 
             self._objs_need_reset[:] = False
 
@@ -441,7 +443,7 @@ class IsaacGymEngine(engine.Engine):
         return
     
     def get_obj_type(self, obj_id):
-        return self._obj_types[obj_id]
+        return self._obj_types[0][obj_id]
     
     def get_obj_num_bodies(self, obj_id):
         env_ptr = self.get_env(0)
@@ -467,7 +469,7 @@ class IsaacGymEngine(engine.Engine):
     def get_control_mode(self):
         return self._control_mode
     
-    def draw_lines(self, env_id, start_verts, end_verts, cols, line_widths):
+    def draw_lines(self, env_id, start_verts, end_verts, cols, line_width):
         env_ptr = self.get_env(env_id)
         num_lines = start_verts.shape[0]
         cols = cols[..., :3]
@@ -478,11 +480,11 @@ class IsaacGymEngine(engine.Engine):
     def _load_asset(self, file, fix_root):
         if (file in self._asset_cache):
             asset = self._asset_cache[file]
-
         else:
             asset_options = gymapi.AssetOptions()
             asset_options.angular_damping = 0.01
-            asset_options.max_angular_velocity = 100.0
+            asset_options.max_linear_velocity = 1000.0
+            asset_options.max_angular_velocity = 1000.0
             asset_options.fix_base_link = fix_root
 
             file_dir = os.path.dirname(file)

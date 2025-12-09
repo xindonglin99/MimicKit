@@ -65,12 +65,12 @@ class SimEnv(base_env.BaseEnv):
 
         self._physics_step()
         
-        if (self._visualize):
-            self._render()
-        
         # compute observations, rewards, resets, ...
         self._post_physics_step()
 
+        if (self._visualize):
+            self._render()
+        
         return self._obs_buf, self._reward_buf, self._done_buf, self._info
     
     def get_num_envs(self):

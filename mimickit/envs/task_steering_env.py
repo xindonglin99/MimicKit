@@ -52,7 +52,7 @@ class TaskSteeringEnv(amp_env.AMPEnv):
         return
     
     def _build_markers(self, env_id):
-        asset_file = "data/assets/objects/steering_marker.urdf"
+        asset_file = "data/assets/objects/steering_marker.xml"
 
         tar_marker_id = self._engine.create_obj(env_id=env_id, 
                                              obj_type=engine.ObjType.rigid,

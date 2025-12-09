@@ -195,5 +195,5 @@ class Engine:
     def get_control_mode(self):
         return
     
-    def draw_lines(self, env_id, start_verts, end_verts, cols, line_widths):
+    def draw_lines(self, env_id, start_verts, end_verts, cols, line_width):
         return

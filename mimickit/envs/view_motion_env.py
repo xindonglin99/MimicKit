@@ -30,6 +30,8 @@ class ViewMotionEnv(char_env.CharEnv):
                                           obj_type=engine.ObjType.articulated,
                                           asset_file=char_file, 
                                           name="character",
+                                          start_pos=self._init_root_pos.cpu().numpy(),
+                                          start_rot=self._init_root_rot.cpu().numpy(),
                                           enable_self_collisions=False,
                                           disable_motors=True,
                                           color=color)
@@ -65,12 +67,13 @@ class ViewMotionEnv(char_env.CharEnv):
         self._engine.set_dof_pos(None, char_id, joint_dof)
         self._engine.set_dof_vel(None, char_id, 0.0)
         
-        if (self._has_key_bodies()):
-            body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos=root_pos,
-                                                                         root_rot=root_rot,
-                                                                         joint_rot=joint_rot)
-            self._ref_body_pos[:] = body_pos
+        body_pos, body_rot = self._kin_char_model.forward_kinematics(root_pos=root_pos,
+                                                                     root_rot=root_rot,
+                                                                     joint_rot=joint_rot)
+        self._ref_body_pos[:] = body_pos
 
+        self._engine.set_body_pos(None, char_id, body_pos)
+        self._engine.set_body_rot(None, char_id, body_rot)
         return
 
     def _render(self):
@@ -106,9 +109,9 @@ class ViewMotionEnv(char_env.CharEnv):
 
     def _render_key_points(self):
         if (self._has_key_bodies()):
+            line_width = 2.0
             num_key_bodies = self._key_body_ids.shape[0]
             cols = np.array(3 * num_key_bodies * [[1.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-            line_widths = np.array(3 * num_key_bodies * [2.0], dtype=np.float32)
             
             num_envs = self.get_num_envs()
             for i in range(num_envs):
@@ -134,12 +137,17 @@ class ViewMotionEnv(char_env.CharEnv):
                 start_verts = start_verts.reshape([-1, 3])
                 end_verts = end_verts.reshape([-1, 3])
                 
-                self._engine.draw_lines(i, start_verts, end_verts, cols, line_widths)
+                self._engine.draw_lines(i, start_verts, end_verts, cols, line_width)
 
         return
     
     def _get_char_color(self):
-        return np.array([0.5, 0.9, 0.1])
+        engine_name = self._engine.get_name()
+        if (engine_name == "isaac_lab"):
+            col = np.array([0.25, 0.4, 0.1])
+        else:
+            col = np.array([0.5, 0.9, 0.1])
+        return col
 
 
 

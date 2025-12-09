@@ -6,7 +6,9 @@
   <img src="images/teaser_go2.gif" width="32%">
 </p>
 
-This framework provides a suite of motion imitation methods for training motion controllers. This codebase is designed to be clean and lightweight, with minimal dependencies. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). This codebase includes implementations of:
+This framework provides a suite of motion imitation methods for training motion controllers. This codebase is designed to be clean and lightweight, with minimal dependencies. A more detailed overview of MimicKit is available in the [Starter Guide](https://arxiv.org/abs/2510.13794). For a more feature-rich and modular motion imitation framework, checkout [ProtoMotions](https://github.com/NVlabs/ProtoMotions/). 
+
+This codebase includes implementations of:
 - [DeepMimic](https://xbpeng.github.io/projects/DeepMimic/index.html)
 - [AMP](https://xbpeng.github.io/projects/AMP/index.html)
 - [ASE](https://xbpeng.github.io/projects/ASE/index.html)
@@ -124,10 +126,10 @@ Motion retargeting can be done using [GMR](https://github.com/YanjieZe/GMR). A s
 ## Citation
 If you find this codebase helpful, please cite:
 ```
-@misc{
+@article{
       MimicKitPeng2025,
       title={MimicKit: A Reinforcement Learning Framework for Motion Imitation and Control}, 
-      author={Xue Bin Peng},
+      author={Peng, Xue Bin},
       year={2025},
       eprint={2510.13794},
       archivePrefix={arXiv},

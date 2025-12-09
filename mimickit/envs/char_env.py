@@ -33,7 +33,6 @@ class CharEnv(sim_env.SimEnv):
         char_id = self._get_char_id()
         self._print_char_prop(0, char_id)
         self._validate_envs()
-
         return
 
     def _parse_init_pose(self, init_pose, device):
@@ -93,6 +92,8 @@ class CharEnv(sim_env.SimEnv):
                                           obj_type=engine.ObjType.articulated,
                                           asset_file=char_file, 
                                           name="character",
+                                          start_pos=self._init_root_pos.cpu().numpy(),
+                                          start_rot=self._init_root_rot.cpu().numpy(),
                                           color=color)
         return char_id
     
@@ -386,30 +387,10 @@ class CharEnv(sim_env.SimEnv):
     def _get_char_color(self):
         engine_name = self._engine.get_name()
         if (engine_name == "isaac_lab"):
-            col = np.array([0.25, 0.35, 0.95])
+            col = np.array([0.2, 0.25, 0.7])
         else:
             col = np.array([0.5, 0.65, 0.95])
         return col
-
-    def _test_forward_kinematics(self):
-        char_id = self._get_char_id()
-        root_pos = self._engine.get_root_pos(char_id)
-        root_rot = self._engine.get_root_rot(char_id)
-        dof_pos = self._engine.get_dof_pos(char_id)
-        joint_rot = self._kin_char_model.dof_to_rot(dof_pos)
-
-        body_pos = self._engine.get_body_pos(char_id)
-        body_rot = self._engine.get_body_rot(char_id)
-
-        fk_body_pos, fk_body_rot = self._kin_char_model.forward_kinematics(root_pos, root_rot, joint_rot)
-        pos_err = body_pos - fk_body_pos
-        rot_err = torch_util.quat_diff_angle(body_rot, fk_body_rot)
-
-        pos_err = torch.max(torch.abs(pos_err))
-        rot_err = torch.max(torch.abs(rot_err))
-
-        assert(pos_err.item() < 1e-5 and rot_err.item() < 1e-5)
-        return
 
 
 

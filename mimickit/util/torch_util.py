@@ -112,7 +112,7 @@ def quat_to_matrix(q):
     return mat.reshape(q.shape[:-1] + (3, 3))
 
 @torch.jit.script
-def quat_to_euler_zyx(q):
+def quat_to_euler_xyz(q):
     # type: (Tensor) -> Tensor
     # Extract the quaternion components
     x = q[..., 0]
@@ -132,7 +132,7 @@ def quat_to_euler_zyx(q):
     t4 = 1.0 - 2.0 * (y * y + z * z)
     yaw_z = torch.atan2(t3, t4)
 
-    return torch.stack([yaw_z, pitch_y, roll_x], dim=-1)
+    return torch.stack([roll_x, pitch_y, yaw_z], dim=-1)
 
 def angle_to_matrix(angle, axis):
     # type: (Tensor, string) -> Tensor

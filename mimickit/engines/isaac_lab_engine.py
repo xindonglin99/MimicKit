@@ -7,6 +7,7 @@ import time
 
 import engines.engine as engine
 from util.logger import Logger
+import util.torch_util as torch_util
 
 ROT_WXYZ_TO_XYZW = [1, 2, 3, 0]
 ROT_XYZW_TO_WXYZ = [3, 0, 1, 2]
@@ -129,6 +130,8 @@ class IsaacLabEngine(engine.Engine):
                    fix_root=False, start_pos=None, start_rot=None, color=None, disable_motors=False):
         if (start_rot is None):
             start_rot = np.array([1.0, 0.0, 0.0, 0.0])
+        else:
+            start_rot = start_rot[ROT_XYZW_TO_WXYZ]
 
         if (start_pos is None):
             start_pos = np.array([0.0, 0.0, 0.0])
@@ -173,12 +176,21 @@ class IsaacLabEngine(engine.Engine):
         return
     
     def update_camera(self, pos, look_at):
-        self._sim.set_camera_view(eye=pos, target=look_at)
+        env_offset = self._env_offsets[0].cpu().numpy()
+        cam_pos = pos.copy()
+        cam_look_at = look_at.copy()
+
+        cam_pos[:2] += env_offset
+        cam_look_at[:2] += env_offset
+        self._sim.set_camera_view(eye=cam_pos, target=cam_look_at)
         return
     
     def get_camera_pos(self):
         cam_state_pos = self._camera_state.position_world
-        cam_pos = np.array([cam_state_pos[0], cam_state_pos[1], cam_state_pos[2]])
+        env_offset = self._env_offsets[0].cpu().numpy()
+        cam_pos = np.array([cam_state_pos[0] - env_offset[0], 
+                            cam_state_pos[1] - env_offset[1], 
+                            cam_state_pos[2]])
         return cam_pos
     
     def render(self):
@@ -516,14 +528,16 @@ class IsaacLabEngine(engine.Engine):
     def get_control_mode(self):
         return self._control_mode
     
-    def draw_lines(self, env_id, start_verts, end_verts, cols, line_widths):
+    def draw_lines(self, env_id, start_verts, end_verts, cols, line_width):
         env_offset = self._env_offsets[env_id].cpu().numpy()
         start_pts = start_verts.copy()
         end_pts = end_verts.copy()
 
         start_pts[:, :2] += env_offset
         end_pts[:, :2] += env_offset
-        self._draw_interface.draw_lines(start_pts.tolist(), end_pts.tolist(), cols.tolist(), line_widths.tolist())
+        line_widths = [line_width] * start_pts.shape[0]
+
+        self._draw_interface.draw_lines(start_pts.tolist(), end_pts.tolist(), cols.tolist(), line_widths)
         return
 
     def _build_ground(self):
@@ -532,7 +546,8 @@ class IsaacLabEngine(engine.Engine):
         import omni.kit.commands
         from pxr import UsdPhysics
 
-        ground_col = 0.02 * np.array([0.75, 0.68, 0.52])
+        ground_col = np.array([1.0, 0.9, 0.75])
+        ground_col *= 0.017
         ground_path = GROUND_PATH
 
         physics_material = sim_utils.RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0,
@@ -553,23 +568,41 @@ class IsaacLabEngine(engine.Engine):
         env_ids = torch.arange(num_envs, device=self._device)
 
         num_rows = int(np.ceil(np.sqrt(num_envs)))
+        num_cols = int(np.ceil(num_envs / num_rows))
         col = torch.floor(env_ids / num_rows)
         row = torch.remainder(env_ids, num_rows)
 
         env_spacing = self._get_env_spacing()
+        row_offset = 0.5 * env_spacing * (num_rows - 1)
+        col_offset = 0.5 * env_spacing * (num_cols - 1)
+
         offsets = torch.zeros([num_envs, 2], device=self._device, dtype=torch.float)
-        offsets[:, 0] = row * env_spacing
-        offsets[:, 1] = col * env_spacing
+        offsets[:, 0] = row * env_spacing - row_offset
+        offsets[:, 1] = col * env_spacing - col_offset
         return offsets
     
     def _build_lights(self):
         import isaaclab.sim as sim_utils
+        import isaacsim.core.utils.prims as prim_utils
+        from pxr import Gf
 
-        dome_light_cfg = sim_utils.DomeLightCfg(intensity=500.0, color=(0.7, 0.7, 0.8))
-        self._dome_light = dome_light_cfg.func(LIGHT_PATH + "/dome_light", dome_light_cfg)
+        light_quat = torch_util.quat_from_euler_xyz(torch.tensor(0.7), 
+                                                    torch.tensor(0.0), 
+                                                    torch.tensor(0.6))
+        light_quat = light_quat.tolist()
+        distant_light_path = LIGHT_PATH + "/distant_light_xform"
+        light_xform = prim_utils.create_prim(distant_light_path, "Xform")
+
+        gf_quatf = Gf.Quatd()
+        gf_quatf.SetReal(light_quat[-1])
+        gf_quatf.SetImaginary(tuple(light_quat[:-1]))
+        light_xform.GetAttribute("xformOp:orient").Set(gf_quatf)
 
         distant_light_cfg = sim_utils.DistantLightCfg(intensity=2000.0, color=(0.8, 0.8, 0.8))
-        self._distant_light = distant_light_cfg.func(LIGHT_PATH + "/distant_light", distant_light_cfg)
+        self._distant_light = distant_light_cfg.func(distant_light_path + "/distant_light", distant_light_cfg)
+
+        dome_light_cfg = sim_utils.DomeLightCfg(intensity=800.0, color=(0.7, 0.7, 0.7))
+        self._dome_light = dome_light_cfg.func(LIGHT_PATH + "/dome_light", dome_light_cfg)
         return
     
     def _build_camera(self):
@@ -753,7 +786,10 @@ class IsaacLabEngine(engine.Engine):
             visual_material = None
 
         rigid_props = sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=obj_cfg.fix_root,
-                                                       max_depenetration_velocity=10.0)
+                                                       max_depenetration_velocity=10.0,
+                                                       angular_damping=0.01,
+                                                       max_linear_velocity=1000.0,
+                                                       max_angular_velocity=1000.0)
         usd_asset_file = self._parse_usd_path(obj_cfg.asset_file)
         usd_cfg = sim_utils.UsdFileCfg(usd_path=usd_asset_file, 
                                        visual_material=visual_material, 
@@ -785,8 +821,10 @@ class IsaacLabEngine(engine.Engine):
                     enabled_self_collisions=obj_cfg.enable_self_collisions, 
                     fix_root_link=obj_cfg.fix_root)
         
-        rigid_props = sim_utils.RigidBodyPropertiesCfg(max_depenetration_velocity=10.0)
-        
+        rigid_props = sim_utils.RigidBodyPropertiesCfg(max_depenetration_velocity=10.0,
+                                                       angular_damping=0.01,
+                                                       max_linear_velocity=1000.0,
+                                                       max_angular_velocity=1000.0)
         usd_asset_file = self._parse_usd_path(obj_cfg.asset_file)
         usd_cfg = sim_utils.UsdFileCfg(usd_path=usd_asset_file, 
                                        visual_material=visual_material,

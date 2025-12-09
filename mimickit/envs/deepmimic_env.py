@@ -84,6 +84,7 @@ class DeepMimicEnv(char_env.CharEnv):
         self._ref_root_vel = torch.zeros_like(root_vel)
         self._ref_root_ang_vel = torch.zeros_like(root_ang_vel)
         self._ref_body_pos = torch.zeros_like(body_pos)
+        self._ref_body_rot = torch.zeros_like(body_rot)
         self._ref_joint_rot = torch.zeros_like(body_rot[..., 1:, :])
         self._ref_dof_pos = torch.zeros_like(dof_pos) 
         self._ref_dof_vel = torch.zeros_like(dof_vel)
@@ -129,7 +130,12 @@ class DeepMimicEnv(char_env.CharEnv):
         return self._visualize and self._visualize_ref_char
 
     def _get_ref_char_color(self):
-        return np.array([0.5, 0.9, 0.1])
+        engine_name = self._engine.get_name()
+        if (engine_name == "isaac_lab"):
+            col = np.array([0.25, 0.4, 0.1])
+        else:
+            col = np.array([0.5, 0.9, 0.1])
+        return col
 
     def _reset_char(self, env_ids):
         self._reset_ref_motion(env_ids)
@@ -171,9 +177,10 @@ class DeepMimicEnv(char_env.CharEnv):
         self._ref_joint_rot[env_ids] = joint_rot
         self._ref_dof_vel[env_ids] = dof_vel
         
-        ref_body_pos, _ = self._kin_char_model.forward_kinematics(self._ref_root_pos, self._ref_root_rot,
-                                                                                 self._ref_joint_rot)
+        ref_body_pos, ref_body_rot = self._kin_char_model.forward_kinematics(self._ref_root_pos, self._ref_root_rot,
+                                                                             self._ref_joint_rot)
         self._ref_body_pos[:] = ref_body_pos
+        self._ref_body_rot[:] = ref_body_rot
 
         dof_pos = self._motion_lib.joint_rot_to_dof(joint_rot)
         self._ref_dof_pos[env_ids] = dof_pos
@@ -241,9 +248,10 @@ class DeepMimicEnv(char_env.CharEnv):
         self._ref_joint_rot[:] = joint_rot
         self._ref_dof_vel[:] = dof_vel
 
-        ref_body_pos, _ = self._kin_char_model.forward_kinematics(self._ref_root_pos, self._ref_root_rot,
-                                                                                 self._ref_joint_rot)
+        ref_body_pos, ref_body_rot = self._kin_char_model.forward_kinematics(self._ref_root_pos, self._ref_root_rot,
+                                                                             self._ref_joint_rot)
         self._ref_body_pos[:] = ref_body_pos
+        self._ref_body_rot[:] = ref_body_rot
 
         if (self._enable_ref_char()):
             dof_pos = self._motion_lib.joint_rot_to_dof(joint_rot)
@@ -255,6 +263,8 @@ class DeepMimicEnv(char_env.CharEnv):
         ref_char_id = self._get_ref_char_id()
 
         root_pos = self._ref_root_pos + self._ref_char_offset
+        body_pos = self._ref_body_pos + self._ref_char_offset
+
         self._engine.set_root_pos(None, ref_char_id, root_pos)
         self._engine.set_root_rot(None, ref_char_id, self._ref_root_rot)
         self._engine.set_root_vel(None, ref_char_id, 0.0)
@@ -262,7 +272,9 @@ class DeepMimicEnv(char_env.CharEnv):
         
         self._engine.set_dof_pos(None, ref_char_id, self._ref_dof_pos)
         self._engine.set_dof_vel(None, ref_char_id, 0.0)
-        
+
+        self._engine.set_body_pos(None, ref_char_id, body_pos)
+        self._engine.set_body_rot(None, ref_char_id, self._ref_body_rot)
         self._engine.set_body_vel(None, ref_char_id, 0.0)
         self._engine.set_body_ang_vel(None, ref_char_id, 0.0)
         return
@@ -602,7 +614,6 @@ class DeepMimicEnv(char_env.CharEnv):
         root_rot = root_rot.reshape([n, num_steps, root_rot.shape[-1]])
         joint_rot = joint_rot.reshape([n, num_steps, joint_rot.shape[-2], joint_rot.shape[-1]])
         return root_pos, root_rot, joint_rot
-
 
 
 @torch.jit.script

@@ -38,7 +38,7 @@ class TaskLocationEnv(amp_env.AMPEnv):
         return
 
     def _build_marker(self, env_id):
-        asset_file = "data/assets/objects/location_marker.urdf"
+        asset_file = "data/assets/objects/location_marker.xml"
 
         marker_id = self._engine.create_obj(env_id=env_id, 
                                             obj_type=engine.ObjType.rigid,
@@ -166,8 +166,8 @@ class TaskLocationEnv(amp_env.AMPEnv):
         return
 
     def _render_location(self):
+        line_width = 2.0
         col = np.array([[1.0, 0.0, 0.0, 0.5]], dtype=np.float32)
-        line_width = np.array([2.0], dtype=np.float32)
         
         char_id = self._get_char_id()
         char_root_pos = self._engine.get_root_pos(char_id)

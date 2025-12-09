@@ -60,6 +60,8 @@ class CharDofTestEnv(char_env.CharEnv):
                                           obj_type=engine.ObjType.articulated,
                                           asset_file=char_file,
                                           name="character",
+                                          start_pos=self._init_root_pos.cpu().numpy(),
+                                          start_rot=self._init_root_rot.cpu().numpy(),
                                           enable_self_collisions=False,
                                           fix_root=True,
                                           color=color)
